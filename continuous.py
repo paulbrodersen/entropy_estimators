@@ -18,25 +18,29 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import numpy as np
-import itertools
-
-from scipy.spatial import cKDTree
-from scipy.special import gamma, digamma
-from scipy.stats import multivariate_normal
 
 """
 TODO:
+- find a better name for normalise
+- make python3 compatible
 - write test for get_pid()
 - get_pmi() with normalisation fails test
 """
 
+import numpy as np
+import itertools
+from scipy.spatial import cKDTree
+from scipy.special import gamma, digamma
+from scipy.stats   import multivariate_normal, rankdata
+
+
 log = np.log10 # i.e. information measures are in bits
 # log = np.log # i.e. information measures are in nats
 
-def convert2rank(arr):
-    # return np.argsort(arr, axis=0) / np.float(arr.shape[0])
+
+def normalise_to_unit_interval(arr):
     return (arr - np.nanmin(arr, axis=0)[None,:]) / (np.nanmax(arr, axis=0) - np.nanmin(arr, axis=0))
+
 
 def det(array_or_scalar):
     if array_or_scalar.size > 1:
@@ -44,84 +48,94 @@ def det(array_or_scalar):
     else:
         return array_or_scalar
 
-def get_h_mvn(X):
+
+def get_h_mvn(x):
 
     """
     Computes the entropy of a multivariate Gaussian distribution:
 
-        H(X) = (1/2) * log((2 * pi * e)^d * det(cov(X)))
+    H(X) = (1/2) * log((2 * pi * e)^d * det(cov(X)))
 
     Arguments:
     ----------
-        X: array of floats with dimensions (N samples, d data dimensions)
-            samples from multivariate normal distribution;
+    x: (n, d) ndarray
+        n samples from a d-dimensional multivariate normal distribution
 
     Returns:
     --------
-        H: scalar
-            entropy estimate
+    h: float
+        entropy H(X)
     """
 
-    d = X.shape[1]
-    H  = 0.5 * log((2 * np.pi * np.e)**d * det(np.cov(X.T)))
-    return H
+    d = x.shape[1]
+    h  = 0.5 * log((2 * np.pi * np.e)**d * det(np.cov(x.T)))
+    return h
 
-def get_mi_mvn(X, Y):
+
+def get_mi_mvn(x, y):
     """
     Computes the mutual information I between two multivariate normal random
     variables, X and Y:
 
-        I(X, Y) = H(X) + H(Y) - H(X, Y)
+    I(X, Y) = H(X) + H(Y) - H(X, Y)
 
     Arguments:
-        X, Y: arrays of floats with dimensions (N samples, d data dimensions)
-            samples from X, Y
+    ----------
+    x, y: (n, d) ndarrays
+        n samples from d-dimensional multivariate normal distributions
 
     Returns:
-        I: scalar
-            mutual information between X and Y
+    --------
+    mi: float
+        mutual information I(X, Y)
     """
 
-    d = X.shape[1]
+    d = x.shape[1]
 
-    HX  = 0.5 * log((2 * np.pi * np.e)**d * det(np.cov(X.T)))
-    HY  = 0.5 * log((2 * np.pi * np.e)**d * det(np.cov(Y.T)))
-    HXY = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(X.T, y=Y.T)))
+    hx  = 0.5 * log((2 * np.pi * np.e)**d     * det(np.cov(x.T)))
+    hy  = 0.5 * log((2 * np.pi * np.e)**d     * det(np.cov(y.T)))
+    hxy = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(x.T, y=y.T)))
 
-    return HX + HY - HXY
+    mi = hx + hy - hxy
+    return mi
 
-def get_pmi_mvn(X, Y, Z):
+
+def get_pmi_mvn(x, y, z):
     """
     Computes the partial mutual information PMI between two multivariate normal random
     variables, X and Y, while conditioning on a third MVN RV, Z:
 
-        I(X;Y|Z) = H(X,Z) + H(Y,Z) - H(X, Y, Z) - H(Z)
+    I(X;Y|Z) = H(X,Z) + H(Y,Z) - H(X, Y, Z) - H(Z)
 
     where:
 
-        H(Z)     = (1/2) * log(det(2 * pi * e * cov(Z)))
-        H(X,Z)   = (1/2) * log(det(2 * pi * e * cov(XZ)))
-        H(Y,Z)   = (1/2) * log(det(2 * pi * e * cov(YZ)))
-        H(X,Y,Z) = (1/2) * log(det(2 * pi * e * cov(XYZ)))
+    H(Z)     = (1/2) * log(det(2 * pi * e * cov(Z)))
+    H(X,Z)   = (1/2) * log(det(2 * pi * e * cov(XZ)))
+    H(Y,Z)   = (1/2) * log(det(2 * pi * e * cov(YZ)))
+    H(X,Y,Z) = (1/2) * log(det(2 * pi * e * cov(XYZ)))
 
     Arguments:
-        X, Y, Z: arrays of floats with dimensions (N samples, d data dimensions)
-            samples from X, Y, Z
+    ----------
+    x, y, z: (n, d) ndarrays
+        n samples from d-dimensional multivariate normal distributions
 
     Returns:
-        pmi: scalar
-            partial mutual information between X and Y conditioned on Z
+    --------
+    pmi: float
+        partial mutual information I(X;Y|Z)
     """
 
-    d = X.shape[1]
-    HZ   = 0.5 * log((2 * np.pi * np.e)**d * det(np.cov(Z.T)))
-    HXZ  = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(X.T, y=Z.T)))
-    HYZ  = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(Y.T, y=Z.T)))
-    HXYZ = 0.5 * log((2 * np.pi * np.e)**(3*d) * det(np.cov(np.c_[X,Y,Z].T)))
+    d = x.shape[1]
+    hz   = 0.5 * log((2 * np.pi * np.e)**d     * det(np.cov(z.T)))
+    hxz  = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(x.T, y=z.T)))
+    hyz  = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(y.T, y=z.T)))
+    hxyz = 0.5 * log((2 * np.pi * np.e)**(3*d) * det(np.cov(np.c_[x,y,z].T)))
 
-    return HXZ + HYZ - HXYZ - HZ
+    pmi = hxz + hyz - hxyz - hz
+    return pmi
 
-def get_h(x, normalize=False, k=1, norm=np.inf, min_dist=0.):
+
+def get_h(x, k=1, normalize=False, norm=np.inf, min_dist=0.):
     """
     Estimates the entropy H of a random variable x (in nats) based on
     the kth-nearest neighbour distances between point samples.
@@ -131,18 +145,30 @@ def get_h(x, normalize=False, k=1, norm=np.inf, min_dist=0.):
 
     Arguments:
     ----------
-        x: (N observations, d data dimensions) array of floats
-            the random variable
-        k: int
-            kth nearest neighbour to use in density estimate; imposes smoothness
-            on the underlying probability distribution
-        norm: 1, 2, or np.inf (default)
-            p-norm used when computing k-nearest neighbour distances
+    x: (n, d) ndarray
+        n samples from a d-dimensional multivariate distribution
+
+    k: int (default 1)
+        kth nearest neighbour to use in density estimate;
+        imposes smoothness on the underlying probability distribution
+
+    normalize: boolean (default False)
+        if True, the data is normalised to the unit interval before the computation
+
+    norm: 1, 2, or np.inf (default np.inf)
+        p-norm used when computing k-nearest neighbour distances
+            1: absolute-value norm
+            2: euclidean norm
+            3: max norm
+
+    min_dist: float (default 0.)
+        minimum distance between data points;
+        smaller distances will be capped using this value
 
     Returns:
     --------
-        H: scalar
-            entropy H(x)
+    h: float
+        entropy H(X)
     """
 
     N, d = x.shape
@@ -150,7 +176,7 @@ def get_h(x, normalize=False, k=1, norm=np.inf, min_dist=0.):
     if normalize:
         import warnings
         warnings.warn('Normalisation fundamentally breaks the KL-estimator! Only use option if you know what you are doing.')
-        x = convert2rank(x)
+        x = normalise_to_unit_interval(x)
 
     # volume of the d-dimensional unit ball...
     if norm == np.inf: # max norm:
@@ -176,7 +202,8 @@ def get_h(x, normalize=False, k=1, norm=np.inf, min_dist=0.):
 
     return h
 
-def get_mi(x, y, normalize=False, k=1, norm=np.inf, estimator='ksg'):
+
+def get_mi(x, y, k=1, normalize=False, norm=np.inf, estimator='ksg'):
     """
     Estimates the mutual information (in nats) between two point clouds, x and y,
     in a D-dimensional space.
@@ -188,38 +215,49 @@ def get_mi(x, y, normalize=False, k=1, norm=np.inf, estimator='ksg'):
 
     Arguments:
     ----------
-        x, y:
-            arrays of floats with dimensions N samples x D data dimensions
-        normalize: bool (default=False)
-            if True, data values are replaced by their rank in each dimension
-            (destroys linear correlations)
-        k:
-            kth nearest neighbour to use in density estimate; imposes smoothness
-            on the underlying probability distribution
-        norm: 1, 2, or np.inf (default)
-            p-norm used when computing k-nearest neighbour distances
-        estimator: 'ksg' (default)or 'naive'
-            'ksg': see Kraskov, Stoegbauer & Grassberger (2004) Estimating mutual information, eq(8).
-            'naive': entropies are calculated individually using the Kozachenko-Leonenko estimator implemented in get_h()
+    x, y: (n, d) ndarray
+        n samples from d-dimensional multivariate distributions
+
+    k: int (default 1)
+        kth nearest neighbour to use in density estimate;
+        imposes smoothness on the underlying probability distribution
+
+    normalize: boolean (default False)
+        if True, the data is normalised to the unit interval before computation
+
+    norm: 1, 2, or np.inf (default np.inf)
+        p-norm used when computing k-nearest neighbour distances
+            1: absolute-value norm
+            2: euclidean norm
+            3: max norm
+
+    min_dist: float (default 0.)
+        minimum distance between data points;
+        smaller distances will be capped using this value
+
+    estimator: 'ksg' or 'naive' (default 'ksg')
+        'ksg'  : see Kraskov, Stoegbauer & Grassberger (2004) Estimating mutual information, eq(8).
+        'naive': entropies are calculated individually using the Kozachenko-Leonenko estimator implemented in get_h()
 
     Returns:
     --------
-        mi: scalar float
-            mutual information
+    mi: float
+        mutual information I(X,Y)
+
     """
 
     if normalize:
-        x = convert2rank(x)
-        y = convert2rank(y)
+        x = normalise_to_unit_interval(x)
+        y = normalise_to_unit_interval(y)
 
     # construct state array for the joint process:
     xy = np.c_[x,y]
 
     if estimator == 'naive':
         # compute individual entropies
-        hx  = get_h(x,  normalize=False, k=k, norm=norm)
-        hy  = get_h(y,  normalize=False, k=k, norm=norm)
-        hxy = get_h(xy, normalize=False, k=k, norm=norm)
+        hx  = get_h(x,  k=k, normalize=False, norm=norm)
+        hy  = get_h(y,  k=k, normalize=False, norm=norm)
+        hxy = get_h(xy, k=k, normalize=False, norm=norm)
 
         # compute mi
         mi = hx + hy - hxy
@@ -259,7 +297,8 @@ def get_mi(x, y, normalize=False, k=1, norm=np.inf, estimator='ksg'):
 
     return mi
 
-def get_pmi(x, y, z, normalize=False, k=1, norm=np.inf, estimator='fp'):
+
+def get_pmi(x, y, z, k=1, normalize=False, norm=np.inf, estimator='fp'):
     """
     Estimates the partial mutual information (in nats), i.e. the
     information between two point clouds, x and y, in a D-dimensional
@@ -275,31 +314,37 @@ def get_pmi(x, y, z, normalize=False, k=1, norm=np.inf, estimator='fp'):
 
     Arguments:
     ----------
-        x, y, z:
-            arrays of floats with dimensions N samples x D data dimensions
-        normalize: bool (default=False)
-            if True, data values are replaced by their rank in each dimension
-            (destroys linear correlations)
-        k:
-            kth nearest neighbour to use in density estimate; imposes smoothness
-            on the underlying probability distribution
-        norm: 1, 2, or np.inf (default)
-            p-norm used when computing k-nearest neighbour distances
-        estimator: 'fp' (default), 'ps' or 'naive'
-            'naive': entropies are calculated individually using the Kozachenko-Leonenko estimator implemented in get_h()
-            'fp': Frenzel & Pombe estimator (effectively the KSG-estimator for mutual information)
+    x, y, z: (n, d) ndarray
+        n samples from d-dimensional multivariate distributions
+
+    k: int (default 1)
+        kth nearest neighbour to use in density estimate;
+        imposes smoothness on the underlying probability distribution
+
+    normalize: boolean (default False)
+        if True, the data is normalised to the unit interval before computation
+
+    norm: 1, 2, or np.inf (default np.inf)
+        p-norm used when computing k-nearest neighbour distances
+            1: absolute-value norm
+            2: euclidean norm
+            3: max norm
+
+    estimator: 'fp', 'ps' or 'naive' (default 'fp')
+        'naive': entropies are calculated individually using the Kozachenko-Leonenko estimator implemented in get_h()
+        'fp'   : Frenzel & Pombe estimator (effectively the KSG-estimator for mutual information)
 
     Returns:
     --------
-        mi: scalar float
-            mutual information
+    pmi: float
+        partial mutual information I(X,Y;Z)
 
     """
 
     if normalize:
-        x = convert2rank(x)
-        y = convert2rank(y)
-        z = convert2rank(z)
+        x = normalise_to_unit_interval(x)
+        y = normalise_to_unit_interval(y)
+        z = normalise_to_unit_interval(z)
 
     # construct state array for the joint processes:
     xz  = np.c_[x,z]
@@ -308,10 +353,11 @@ def get_pmi(x, y, z, normalize=False, k=1, norm=np.inf, estimator='fp'):
 
     if estimator == 'naive':
         # compute individual entropies
-        hz   = get_h(z,   k=k)
-        hxz  = get_h(xz,  k=k)
-        hyz  = get_h(yz,  k=k)
-        hxyz = get_h(xyz, k=k)
+        # TODO: pass in min_dist
+        hz   = get_h(z,   k=k, normalize=False, norm=norm)
+        hxz  = get_h(xz,  k=k, normalize=False, norm=norm)
+        hyz  = get_h(yz,  k=k, normalize=False, norm=norm)
+        hxyz = get_h(xyz, k=k, normalize=False, norm=norm)
 
         pmi =  hxz + hyz - hxyz - hz
 
@@ -343,8 +389,8 @@ def get_pmi(x, y, z, normalize=False, k=1, norm=np.inf, estimator='fp'):
         pmi = digamma(k) + np.mean(digamma(nz +1) -digamma(nxz +1) -digamma(nyz +1))
 
     elif estimator == 'ps':
-        # this is the correct implementation of the estimator,
-        # but the estimators is crap
+        # (I am fairly sure that) this is the correct implementation of the estimator,
+        # but the estimators is just crap.
 
         # construct k-d trees
         xz_tree  = cKDTree(xz,  leafsize=2*k)
@@ -364,7 +410,8 @@ def get_pmi(x, y, z, normalize=False, k=1, norm=np.inf, estimator='fp'):
 
     return pmi
 
-def get_imin(x1, x2, y, normalize=False, k=1, norm=np.inf):
+
+def get_imin(x1, x2, y, k=1, normalize=False, norm=np.inf):
     """
     Estimates the average specific information (in nats) between a random variable Y
     and two explanatory variables, X1 and X2.
@@ -381,25 +428,31 @@ def get_imin(x1, x2, y, normalize=False, k=1, norm=np.inf):
 
     Arguments:
     ----------
-        x1, x2, y:
-            arrays of floats with dimensions N samples x D data dimensions
-        normalize: bool (default=False)
-            if True, data values are replaced by their rank in each dimension
-            (destroys linear correlations)
-        k:
-            kth nearest neighbour to use in density estimate; imposes smoothness
-            on the underlying probability distribution
-        norm: 1, 2, or np.inf (default)
-            p-norm used when computing k-nearest neighbour distances
+    x1, x2, y: (n, d) ndarray
+        n samples from d-dimensional multivariate distributions
+
+    k: int (default 1)
+        kth nearest neighbour to use in density estimate;
+        imposes smoothness on the underlying probability distribution
+
+    normalize: boolean (default False)
+        if True, the data is normalised to the unit interval before computation
+
+    norm: 1, 2, or np.inf (default np.inf)
+        p-norm used when computing k-nearest neighbour distances
+            1: absolute-value norm
+            2: euclidean norm
+            3: max norm
 
     Returns:
     --------
-        i_min: scalar float
+    i_min: float
+        average specific information I_min(Y; X1, X2)
 
     """
 
     if normalize:
-        y = convert2rank(y)
+        y = normalise_to_unit_interval(y)
 
     y_tree  = cKDTree(y)
 
@@ -409,7 +462,7 @@ def get_imin(x1, x2, y, normalize=False, k=1, norm=np.inf):
     for jj, x in enumerate([x1, x2]):
 
         if normalize:
-            x = convert2rank(x)
+            x = normalise_to_unit_interval(x)
 
         # construct state array for the joint processes:
         xy = np.c_[x,y]
@@ -439,7 +492,8 @@ def get_imin(x1, x2, y, normalize=False, k=1, norm=np.inf):
 
     return i_min
 
-def get_pid(x1, x2, y, normalize=False, k=5, norm=np.inf):
+
+def get_pid(x1, x2, y, k=1, normalize=False, norm=np.inf):
 
     """
     Estimates the partial information decomposition (in nats) between a random variable Y
@@ -464,35 +518,39 @@ def get_pid(x1, x2, y, normalize=False, k=5, norm=np.inf):
 
     Arguments:
     ----------
-        x1, x2, y:
-            arrays of floats with dimensions N samples x D data dimensions
-        normalize: bool (default=False)
-            if True, data values are replaced by their rank in each dimension
-            (destroys linear correlations)
-        k:
-            kth nearest neighbour to use in density estimate; imposes smoothness
-            on the underlying probability distribution
-        norm: 1, 2, or np.inf (default)
-            p-norm used when computing k-nearest neighbour distances
+    x1, x2, y: (n, d) ndarray
+        n samples from d-dimensional multivariate distributions
+
+    k: int (default 1)
+        kth nearest neighbour to use in density estimate;
+        imposes smoothness on the underlying probability distribution
+
+    normalize: boolean (default False)
+        if True, the data is normalised to the unit interval before computation
+
+    norm: 1, 2, or np.inf (default np.inf)
+        p-norm used when computing k-nearest neighbour distances
+            1: absolute-value norm
+            2: euclidean norm
+            3: max norm
 
     Returns:
     --------
-        synergy: scalar float
-            information about Y encoded by the joint state of x1 and x2
-        unique_x1: scalar float
-            information about Y encoded uniquely by x1
-        unique_x2: scalar float
-            information about Y encoded uniquely by x2
-        redundancy: scalar float
-            information about Y encoded by either x1 or x2
+    synergy: float
+        information about Y encoded by the joint state of x1 and x2
+    unique_x1: float
+        information about Y encoded uniquely by x1
+    unique_x2: float
+        information about Y encoded uniquely by x2
+    redundancy: float
+        information about Y encoded by either x1 or x2
 
     """
 
-    mi_x1y = get_mi(x1, y, normalize=normalize, k=k, norm=norm)
-    mi_x2y = get_mi(x2, y, normalize=normalize, k=k, norm=norm)
-    mi_x1x2y = get_mi(np.c_[x1, x2], y, normalize=normalize, k=k, norm=norm)
-
-    redundancy = get_imin(x1, x2, y, normalize=normalize, k=k, norm=norm)
+    mi_x1y     = get_mi(x1,            y, k=k, normalize=normalize, norm=norm)
+    mi_x2y     = get_mi(x2,            y, k=k, normalize=normalize, norm=norm)
+    mi_x1x2y   = get_mi(np.c_[x1, x2], y, k=k, normalize=normalize, norm=norm)
+    redundancy = get_imin(x1, x2,      y, k=k, normalize=normalize, norm=norm)
 
     unique_x1 = mi_x1y - redundancy
     unique_x2 = mi_x2y - redundancy
@@ -500,8 +558,9 @@ def get_pid(x1, x2, y, normalize=False, k=5, norm=np.inf):
 
     return synergy, unique_x1, unique_x2, redundancy
 
+
 # --------------------------------------------------------------------------------
-# --------------------------------------------------------------------------------
+
 
 def get_mvn_data(total_rvs, dimensionality=2, scale_sigma_offdiagonal_by=1., total_samples=1000):
     data_space_size = total_rvs * dimensionality
@@ -531,21 +590,20 @@ def get_mvn_data(total_rvs, dimensionality=2, scale_sigma_offdiagonal_by=1., tot
     return [samples[:,ii*d:(ii+1)*d] for ii in range(total_rvs)]
 
 
-def test_get_h(normalize=False, k=5, norm=np.inf):
+def test_get_h(k=5, normalize=False, norm=np.inf):
     X, = get_mvn_data(total_rvs=1,
                       dimensionality=2,
                       scale_sigma_offdiagonal_by=1.,
                       total_samples=1000)
 
     analytic = get_h_mvn(X)
-    kozachenko = get_h(X, normalize, k, norm)
+    kozachenko = get_h(X, k, normalize, norm)
 
     print "analytic result: {: .5f}".format(analytic)
     print "K-L estimator: {: .5f}".format(kozachenko)
 
-    return
 
-def test_get_mi(normalize=False, k=5, norm=np.inf):
+def test_get_mi(k=5, normalize=False, norm=np.inf):
 
     X, Y = get_mvn_data(total_rvs=2,
                         dimensionality=2,
@@ -554,8 +612,8 @@ def test_get_mi(normalize=False, k=5, norm=np.inf):
 
     # solutions
     analytic = get_mi_mvn(X, Y)
-    naive = get_mi(X, Y, normalize=normalize, k=k, norm=norm, estimator='naive')
-    ksg   = get_mi(X, Y, normalize=normalize, k=k, norm=norm, estimator='ksg')
+    naive = get_mi(X, Y, k=k, normalize=normalize, norm=norm, estimator='naive')
+    ksg   = get_mi(X, Y, k=k, normalize=normalize, norm=norm, estimator='ksg')
 
     print "analytic result: {: .5f}".format(analytic)
     print "naive estimator: {: .5f}".format(naive)
@@ -564,21 +622,20 @@ def test_get_mi(normalize=False, k=5, norm=np.inf):
 
     # for automated testing:
     assert np.isclose(analytic, naive, rtol=0.5, atol=0.5), "Naive MI estimate strongly differs from expectation!"
-    assert np.isclose(analytic, ksg, rtol=0.5, atol=0.5), "KSG MI estimate strongly differs from expectation!"
+    assert np.isclose(analytic, ksg,   rtol=0.5, atol=0.5), "KSG MI estimate strongly differs from expectation!"
 
-    return
 
-def test_get_pmi(normalize=False, k=5, norm=np.inf):
+def test_get_pmi(k=5, normalize=False, norm=np.inf):
 
     X, Y, Z = get_mvn_data(total_rvs=3,
-                        dimensionality=2,
-                        scale_sigma_offdiagonal_by=1.,
-                        total_samples=10000)
+                           dimensionality=2,
+                           scale_sigma_offdiagonal_by=1.,
+                           total_samples=10000)
 
     # solutions
     analytic = get_pmi_mvn(X, Y, Z)
-    naive = get_pmi(X, Y, Z, normalize=normalize, k=k, norm=norm, estimator='naive')
-    fp    = get_pmi(X, Y, Z, normalize=normalize, k=k, norm=norm, estimator='fp')
+    naive    = get_pmi(X, Y, Z, k=k, normalize=normalize, norm=norm, estimator='naive')
+    fp       = get_pmi(X, Y, Z, k=k, normalize=normalize, norm=norm, estimator='fp')
 
     print "analytic result: {: .5f}".format(analytic)
     print "naive estimator: {: .5f}".format(naive)
@@ -589,7 +646,6 @@ def test_get_pmi(normalize=False, k=5, norm=np.inf):
     assert np.isclose(analytic, naive, rtol=0.5, atol=0.5), "Naive MI estimate strongly differs from expectation!"
     assert np.isclose(analytic, fp,    rtol=0.5, atol=0.5), "FP MI estimate strongly differs from expectation!"
 
-    return
 
 def test_get_pid(normalize=False, k=5, norm=np.inf):
     # rdn -> only redundant information
@@ -598,4 +654,4 @@ def test_get_pid(normalize=False, k=5, norm=np.inf):
 
     # xor -> only synergistic information
 
-    return
+    pass
