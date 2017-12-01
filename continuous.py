@@ -31,6 +31,9 @@ TODO:
 - get_pmi() with normalisation fails test
 """
 
+log = np.log10 # i.e. information measures are in bits
+# log = np.log # i.e. information measures are in nats
+
 def convert2rank(arr):
     # return np.argsort(arr, axis=0) / np.float(arr.shape[0])
     return (arr - np.nanmin(arr, axis=0)[None,:]) / (np.nanmax(arr, axis=0) - np.nanmin(arr, axis=0))
@@ -60,7 +63,7 @@ def get_h_mvn(X):
     """
 
     d = X.shape[1]
-    H  = 0.5 * np.log((2 * np.pi * np.e)**d * det(np.cov(X.T)))
+    H  = 0.5 * log((2 * np.pi * np.e)**d * det(np.cov(X.T)))
     return H
 
 def get_mi_mvn(X, Y):
@@ -81,9 +84,9 @@ def get_mi_mvn(X, Y):
 
     d = X.shape[1]
 
-    HX  = 0.5 * np.log((2 * np.pi * np.e)**d * det(np.cov(X.T)))
-    HY  = 0.5 * np.log((2 * np.pi * np.e)**d * det(np.cov(Y.T)))
-    HXY = 0.5 * np.log((2 * np.pi * np.e)**(2*d) * det(np.cov(X.T, y=Y.T)))
+    HX  = 0.5 * log((2 * np.pi * np.e)**d * det(np.cov(X.T)))
+    HY  = 0.5 * log((2 * np.pi * np.e)**d * det(np.cov(Y.T)))
+    HXY = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(X.T, y=Y.T)))
 
     return HX + HY - HXY
 
@@ -111,10 +114,10 @@ def get_pmi_mvn(X, Y, Z):
     """
 
     d = X.shape[1]
-    HZ   = 0.5 * np.log((2 * np.pi * np.e)**d * det(np.cov(Z.T)))
-    HXZ  = 0.5 * np.log((2 * np.pi * np.e)**(2*d) * det(np.cov(X.T, y=Z.T)))
-    HYZ  = 0.5 * np.log((2 * np.pi * np.e)**(2*d) * det(np.cov(Y.T, y=Z.T)))
-    HXYZ = 0.5 * np.log((2 * np.pi * np.e)**(3*d) * det(np.cov(np.c_[X,Y,Z].T)))
+    HZ   = 0.5 * log((2 * np.pi * np.e)**d * det(np.cov(Z.T)))
+    HXZ  = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(X.T, y=Z.T)))
+    HYZ  = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(Y.T, y=Z.T)))
+    HXYZ = 0.5 * log((2 * np.pi * np.e)**(3*d) * det(np.cov(np.c_[X,Y,Z].T)))
 
     return HXZ + HYZ - HXYZ - HZ
 
@@ -153,7 +156,7 @@ def get_h(x, normalize=False, k=1, norm=np.inf, min_dist=0.):
     if norm == np.inf: # max norm:
         log_c_d = 0
     elif norm == 2: # euclidean norm
-        log_c_d = (d/2.) * np.log(np.pi) -np.log(gamma(d/2. +1))
+        log_c_d = (d/2.) * log(np.pi) -log(gamma(d/2. +1))
     elif norm == 1:
         pass
     else:
@@ -168,7 +171,7 @@ def get_h(x, normalize=False, k=1, norm=np.inf, min_dist=0.):
     # enforce non-zero distances
     distances[distances < min_dist] = min_dist
 
-    sum_log_dist = np.sum(np.log(2*distances)) # where did the 2 come from? radius -> diameter
+    sum_log_dist = np.sum(log(2*distances)) # where did the 2 come from? radius -> diameter
     h = -digamma(k) + digamma(N) + log_c_d + (d / float(N)) * sum_log_dist
 
     return h
@@ -354,7 +357,7 @@ def get_pmi(x, y, z, normalize=False, k=1, norm=np.inf, estimator='fp'):
         rxz, dummy = xz_tree.query(xz, k=k+1, p=norm) # +1 to account for distance to itself
         ryz, dummy = yz_tree.query(xz, k=k+1, p=norm) # +1 to account for distance to itself; xz NOT a typo
 
-        pmi = yz.shape[1] * np.mean(np.log(ryz[:,-1]) - np.log(rxz[:,-1])) # + np.log(N) -np.log(N-1) -1.
+        pmi = yz.shape[1] * np.mean(log(ryz[:,-1]) - log(rxz[:,-1])) # + log(N) -log(N-1) -1.
 
     else:
         raise NotImplementedError("Estimator one of 'naive', 'fp', 'ps'; currently: {}".format(estimator))
