@@ -92,11 +92,21 @@ def get_mi_mvn(x, y):
 
     d = x.shape[1]
 
-    hx  = 0.5 * log((2 * np.pi * np.e)**d     * det(np.cov(x.T)))
-    hy  = 0.5 * log((2 * np.pi * np.e)**d     * det(np.cov(y.T)))
-    hxy = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(x.T, y=y.T)))
+    # hx  = 0.5 * log((2 * np.pi * np.e)**d     * det(np.cov(x.T)))
+    # hy  = 0.5 * log((2 * np.pi * np.e)**d     * det(np.cov(y.T)))
+    # hxy = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(x.T, y=y.T)))
+    # mi = hx + hy - hxy
 
+    # hx  = 0.5 * log(det(2*np.pi*np.e*np.cov(x.T)))
+    # hy  = 0.5 * log(det(2*np.pi*np.e*np.cov(y.T)))
+    # hxy = 0.5 * log(det(2*np.pi*np.e*np.cov(np.c_[x,y].T)))
+    hx  = get_h_mvn(x)
+    hy  = get_h_mvn(y)
+    hxy = get_h_mvn(np.c_[x,y])
     mi = hx + hy - hxy
+
+    # mi = 0.5 * (log(det(np.cov(x.T))) + log(det(np.cov(y.T))) - log(det(np.cov(np.c_[x,y].T))))
+
     return mi
 
 
