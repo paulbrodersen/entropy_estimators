@@ -650,8 +650,8 @@ def test_get_mi(k=5, normalize=None, norm=np.inf):
     print
 
     # for automated testing:
-    assert np.isclose(analytic, naive, rtol=0.5, atol=0.5), "Naive MI estimate strongly differs from expectation!"
-    assert np.isclose(analytic, ksg,   rtol=0.5, atol=0.5), "KSG MI estimate strongly differs from expectation!"
+    assert np.isclose(analytic, naive, rtol=0.1, atol=0.1), "Naive MI estimate strongly differs from expectation!"
+    assert np.isclose(analytic, ksg,   rtol=0.1, atol=0.1), "KSG MI estimate strongly differs from expectation!"
 
 
 def test_get_pmi(k=5, normalize=None, norm=np.inf):
