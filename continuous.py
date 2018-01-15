@@ -21,7 +21,6 @@
 
 """
 TODO:
-- find a better name for normalise
 - make python3 compatible
 - fix code for p-norm 1 and 2 (norm argument currently ignored)
 - write test for get_pid()
@@ -39,8 +38,12 @@ log = np.log10 # i.e. information measures are in bits
 # log = np.log # i.e. information measures are in nats
 
 
-def normalise_to_unit_interval(arr):
+def unit_interval(arr):
     return (arr - np.nanmin(arr, axis=0)[None,:]) / (np.nanmax(arr, axis=0) - np.nanmin(arr, axis=0))
+
+
+def rank(arr):
+    return np.apply_along_axis(rankdata, 0, arr)
 
 
 def det(array_or_scalar):
@@ -209,7 +212,7 @@ def get_h(x, k=1, norm=np.inf, min_dist=0.):
     return h
 
 
-def get_mi(x, y, k=1, normalize=False, norm=np.inf, estimator='ksg'):
+def get_mi(x, y, k=1, normalize=None, norm=np.inf, estimator='ksg'):
     """
     Estimates the mutual information (in nats) between two point clouds, x and y,
     in a D-dimensional space.
@@ -253,17 +256,17 @@ def get_mi(x, y, k=1, normalize=False, norm=np.inf, estimator='ksg'):
     """
 
     if normalize:
-        x = normalise_to_unit_interval(x)
-        y = normalise_to_unit_interval(y)
+        x = normalize(x)
+        y = normalize(y)
 
     # construct state array for the joint process:
     xy = np.c_[x,y]
 
     if estimator == 'naive':
         # compute individual entropies
-        hx  = get_h(x,  k=k, normalize=False, norm=norm)
-        hy  = get_h(y,  k=k, normalize=False, norm=norm)
-        hxy = get_h(xy, k=k, normalize=False, norm=norm)
+        hx  = get_h(x,  k=k, norm=norm)
+        hy  = get_h(y,  k=k, norm=norm)
+        hxy = get_h(xy, k=k, norm=norm)
 
         # compute mi
         mi = hx + hy - hxy
@@ -307,7 +310,7 @@ def get_mi(x, y, k=1, normalize=False, norm=np.inf, estimator='ksg'):
     return mi
 
 
-def get_pmi(x, y, z, k=1, normalize=False, norm=np.inf, estimator='fp'):
+def get_pmi(x, y, z, k=1, normalize=None, norm=np.inf, estimator='fp'):
     """
     Estimates the partial mutual information (in nats), i.e. the
     information between two point clouds, x and y, in a D-dimensional
@@ -330,8 +333,8 @@ def get_pmi(x, y, z, k=1, normalize=False, norm=np.inf, estimator='fp'):
         kth nearest neighbour to use in density estimate;
         imposes smoothness on the underlying probability distribution
 
-    normalize: boolean (default False)
-        if True, the data is normalised to the unit interval before computation
+    normalize: function or None (default None)
+        if a function, the data pre-processed with the function before the computation
 
     norm: 1, 2, or np.inf (default np.inf)
         p-norm used when computing k-nearest neighbour distances
@@ -351,9 +354,9 @@ def get_pmi(x, y, z, k=1, normalize=False, norm=np.inf, estimator='fp'):
     """
 
     if normalize:
-        x = normalise_to_unit_interval(x)
-        y = normalise_to_unit_interval(y)
-        z = normalise_to_unit_interval(z)
+        x = normalize(x)
+        y = normalize(y)
+        z = normalize(z)
 
     # construct state array for the joint processes:
     xz  = np.c_[x,z]
@@ -363,10 +366,10 @@ def get_pmi(x, y, z, k=1, normalize=False, norm=np.inf, estimator='fp'):
     if estimator == 'naive':
         # compute individual entropies
         # TODO: pass in min_dist
-        hz   = get_h(z,   k=k, normalize=False, norm=norm)
-        hxz  = get_h(xz,  k=k, normalize=False, norm=norm)
-        hyz  = get_h(yz,  k=k, normalize=False, norm=norm)
-        hxyz = get_h(xyz, k=k, normalize=False, norm=norm)
+        hz   = get_h(z,   k=k, norm=norm)
+        hxz  = get_h(xz,  k=k, norm=norm)
+        hyz  = get_h(yz,  k=k, norm=norm)
+        hxyz = get_h(xyz, k=k, norm=norm)
 
         pmi =  hxz + hyz - hxyz - hz
 
@@ -426,7 +429,7 @@ def get_pmi(x, y, z, k=1, normalize=False, norm=np.inf, estimator='fp'):
     return pmi
 
 
-def get_imin(x1, x2, y, k=1, normalize=False, norm=np.inf):
+def get_imin(x1, x2, y, k=1, normalize=None, norm=np.inf):
     """
     Estimates the average specific information (in nats) between a random variable Y
     and two explanatory variables, X1 and X2.
@@ -450,8 +453,8 @@ def get_imin(x1, x2, y, k=1, normalize=False, norm=np.inf):
         kth nearest neighbour to use in density estimate;
         imposes smoothness on the underlying probability distribution
 
-    normalize: boolean (default False)
-        if True, the data is normalised to the unit interval before computation
+    normalize: function or None (default None)
+        if a function, the data pre-processed with the function before the computation
 
     norm: 1, 2, or np.inf (default np.inf)
         p-norm used when computing k-nearest neighbour distances
@@ -467,7 +470,7 @@ def get_imin(x1, x2, y, k=1, normalize=False, norm=np.inf):
     """
 
     if normalize:
-        y = normalise_to_unit_interval(y)
+        y = normalize(y)
 
     y_tree  = cKDTree(y)
 
@@ -477,7 +480,7 @@ def get_imin(x1, x2, y, k=1, normalize=False, norm=np.inf):
     for jj, x in enumerate([x1, x2]):
 
         if normalize:
-            x = normalise_to_unit_interval(x)
+            x = normalize(x)
 
         # construct state array for the joint processes:
         xy = np.c_[x,y]
@@ -511,7 +514,7 @@ def get_imin(x1, x2, y, k=1, normalize=False, norm=np.inf):
     return i_min
 
 
-def get_pid(x1, x2, y, k=1, normalize=False, norm=np.inf):
+def get_pid(x1, x2, y, k=1, normalize=None, norm=np.inf):
 
     """
     Estimates the partial information decomposition (in nats) between a random variable Y
@@ -543,8 +546,8 @@ def get_pid(x1, x2, y, k=1, normalize=False, norm=np.inf):
         kth nearest neighbour to use in density estimate;
         imposes smoothness on the underlying probability distribution
 
-    normalize: boolean (default False)
-        if True, the data is normalised to the unit interval before computation
+    normalize: function or None (default None)
+        if a function, the data pre-processed with the function before the computation
 
     norm: 1, 2, or np.inf (default np.inf)
         p-norm used when computing k-nearest neighbour distances
@@ -621,7 +624,7 @@ def test_get_h(k=5, norm=np.inf):
     print "K-L estimator: {: .5f}".format(kozachenko)
 
 
-def test_get_mi(k=5, normalize=False, norm=np.inf):
+def test_get_mi(k=5, normalize=None, norm=np.inf):
 
     X, Y = get_mvn_data(total_rvs=2,
                         dimensionality=2,
@@ -643,7 +646,7 @@ def test_get_mi(k=5, normalize=False, norm=np.inf):
     assert np.isclose(analytic, ksg,   rtol=0.5, atol=0.5), "KSG MI estimate strongly differs from expectation!"
 
 
-def test_get_pmi(k=5, normalize=False, norm=np.inf):
+def test_get_pmi(k=5, normalize=None, norm=np.inf):
 
     X, Y, Z = get_mvn_data(total_rvs=3,
                            dimensionality=2,
@@ -665,7 +668,7 @@ def test_get_pmi(k=5, normalize=False, norm=np.inf):
     assert np.isclose(analytic, fp,    rtol=0.5, atol=0.5), "FP MI estimate strongly differs from expectation!"
 
 
-def test_get_pid(normalize=False, k=5, norm=np.inf):
+def test_get_pid(k=5, normalize=None, norm=np.inf):
     # rdn -> only redundant information
 
     # unq -> only unique information
