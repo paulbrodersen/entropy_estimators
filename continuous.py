@@ -34,8 +34,8 @@ from scipy.special import gamma, digamma
 from scipy.stats   import multivariate_normal, rankdata
 
 
-log = np.log10 # i.e. information measures are in bits
-# log = np.log # i.e. information measures are in nats
+log = np.log   # i.e. information measures are in nats
+# log = np.log2  # i.e. information measures are in bits
 
 
 def unit_interval(arr):
