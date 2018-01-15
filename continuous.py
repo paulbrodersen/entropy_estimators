@@ -23,6 +23,7 @@
 TODO:
 - find a better name for normalise
 - make python3 compatible
+- fix code for p-norm 1 and 2 (norm argument currently ignored)
 - write test for get_pid()
 - get_pmi() with normalisation fails test
 """
@@ -189,19 +190,21 @@ def get_h(x, k=1, normalize=False, norm=np.inf, min_dist=0.):
         x = normalise_to_unit_interval(x)
 
     # volume of the d-dimensional unit ball...
-    if norm == np.inf: # max norm:
-        log_c_d = 0
-    elif norm == 2: # euclidean norm
-        log_c_d = (d/2.) * log(np.pi) -log(gamma(d/2. +1))
-    elif norm == 1:
-        pass
-    else:
-        raise NotImplementedError("Variable 'norm' either 1, 2 or np.inf")
+    # if norm == np.inf: # max norm:
+    #     log_c_d = 0
+    # elif norm == 2: # euclidean norm
+    #     log_c_d = (d/2.) * log(np.pi) -log(gamma(d/2. +1))
+    # elif norm == 1:
+    #     raise NotImplementedError
+    # else:
+    #     raise NotImplementedError("Variable 'norm' either 1, 2 or np.inf")
+    log_c_d = 0.
 
     kdtree = cKDTree(x)
 
     # query all points -- k+1 as query point also in initial set
-    distances, idx = kdtree.query(x, k + 1, eps=0, p=norm)
+    # distances, idx = kdtree.query(x, k + 1, eps=0, p=norm)
+    distances, idx = kdtree.query(x, k + 1, eps=0, p=np.inf)
     distances = distances[:, -1]
 
     # enforce non-zero distances
@@ -282,7 +285,8 @@ def get_mi(x, y, k=1, normalize=False, norm=np.inf, estimator='ksg'):
 
         # kth nearest neighbour distances for every state
         # query with k=k+1 to return the nearest neighbour, not counting the data point itself
-        dist, idx = xy_tree.query(xy, k=k+1, p=norm)
+        # dist, idx = xy_tree.query(xy, k=k+1, p=norm)
+        dist, idx = xy_tree.query(xy, k=k+1, p=np.inf)
         epsilon = dist[:, -1]
 
         # for each point, count the number of neighbours
@@ -292,8 +296,10 @@ def get_mi(x, y, k=1, normalize=False, norm=np.inf, estimator='ksg'):
         nx = np.empty(N, dtype=np.int)
         ny = np.empty(N, dtype=np.int)
         for ii in xrange(N):
-            nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=norm)) - 1
-            ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=norm)) - 1
+            # nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=norm)) - 1
+            # ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=norm)) - 1
+            nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
+            ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
 
         mi = digamma(k) - np.mean(digamma(nx+1) + digamma(ny+1)) + digamma(N) # version (1)
         # mi = digamma(k) -1./k -np.mean(digamma(nx) + digamma(ny)) + digamma(N) # version (2)
@@ -381,7 +387,8 @@ def get_pmi(x, y, z, k=1, normalize=False, norm=np.inf, estimator='fp'):
 
         # kth nearest neighbour distances for every state
         # query with k=k+1 to return the nearest neighbour, not the data point itself
-        dist, idx = xyz_tree.query(xyz, k=k+1, p=norm)
+        # dist, idx = xyz_tree.query(xyz, k=k+1, p=norm)
+        dist, idx = xyz_tree.query(xyz, k=k+1, p=np.inf)
         epsilon = dist[:, -1]
 
         # for each point, count the number of neighbours
@@ -391,10 +398,13 @@ def get_pmi(x, y, z, k=1, normalize=False, norm=np.inf, estimator='fp'):
         nyz = np.empty(N, dtype=np.int)
         nz  = np.empty(N, dtype=np.int)
 
-        for ii in xrange(N):
-            nz[ii]  = len( z_tree.query_ball_point( z_tree.data[ii], r=epsilon[ii], p=norm)) - 1
-            nxz[ii] = len(xz_tree.query_ball_point(xz_tree.data[ii], r=epsilon[ii], p=norm)) - 1
-            nyz[ii] = len(yz_tree.query_ball_point(yz_tree.data[ii], r=epsilon[ii], p=norm)) - 1
+        for ii in range(n):
+            # nz[ii]  = len( z_tree.query_ball_point( z_tree.data[ii], r=epsilon[ii], p=norm)) - 1
+            # nxz[ii] = len(xz_tree.query_ball_point(xz_tree.data[ii], r=epsilon[ii], p=norm)) - 1
+            # nyz[ii] = len(yz_tree.query_ball_point(yz_tree.data[ii], r=epsilon[ii], p=norm)) - 1
+            nz[ii]  = len( z_tree.query_ball_point( z_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
+            nxz[ii] = len(xz_tree.query_ball_point(xz_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
+            nyz[ii] = len(yz_tree.query_ball_point(yz_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
 
         pmi = digamma(k) + np.mean(digamma(nz +1) -digamma(nxz +1) -digamma(nyz +1))
 
@@ -410,8 +420,10 @@ def get_pmi(x, y, z, k=1, normalize=False, norm=np.inf, estimator='fp'):
         rxz = np.empty(N, dtype=np.int)
         ryz = np.empty(N, dtype=np.int)
 
-        rxz, dummy = xz_tree.query(xz, k=k+1, p=norm) # +1 to account for distance to itself
-        ryz, dummy = yz_tree.query(xz, k=k+1, p=norm) # +1 to account for distance to itself; xz NOT a typo
+        # rxz, dummy = xz_tree.query(xz, k=k+1, p=norm) # +1 to account for distance to itself
+        # ryz, dummy = yz_tree.query(xz, k=k+1, p=norm) # +1 to account for distance to itself; xz NOT a typo
+        rxz, dummy = xz_tree.query(xz, k=k+1, p=np.inf) # +1 to account for distance to itself
+        ryz, dummy = yz_tree.query(xz, k=k+1, p=np.inf) # +1 to account for distance to itself; xz NOT a typo
 
         pmi = yz.shape[1] * np.mean(log(ryz[:,-1]) - log(rxz[:,-1])) # + log(N) -log(N-1) -1.
 
@@ -484,7 +496,8 @@ def get_imin(x1, x2, y, k=1, normalize=False, norm=np.inf):
 
         # kth nearest neighbour distances for every state
         # query with k=k+1 to return the nearest neighbour, not counting the data point itself
-        dist, idx = xy_tree.query(xy, k=k+1, p=norm)
+        # dist, idx = xy_tree.query(xy, k=k+1, p=norm)
+        dist, idx = xy_tree.query(xy, k=k+1, p=np.inf)
         epsilon = dist[:, -1]
 
         # for each point, count the number of neighbours
@@ -493,8 +506,10 @@ def get_imin(x1, x2, y, k=1, normalize=False, norm=np.inf):
         nx = np.empty(N, dtype=np.int)
         ny = np.empty(N, dtype=np.int)
         for ii in xrange(N):
-            nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=norm)) - 1
-            ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=norm)) - 1
+            # nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=norm)) - 1
+            # ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=norm)) - 1
+            nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
+            ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
 
         i_spec[jj] = digamma(k) - digamma(nx+1) + digamma(ny+1) + digamma(N) # version (1)
 
