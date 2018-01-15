@@ -146,7 +146,7 @@ def get_pmi_mvn(x, y, z):
     return pmi
 
 
-def get_h(x, k=1, normalize=False, norm=np.inf, min_dist=0.):
+def get_h(x, k=1, norm=np.inf, min_dist=0.):
     """
     Estimates the entropy H of a random variable x (in nats) based on
     the kth-nearest neighbour distances between point samples.
@@ -162,9 +162,6 @@ def get_h(x, k=1, normalize=False, norm=np.inf, min_dist=0.):
     k: int (default 1)
         kth nearest neighbour to use in density estimate;
         imposes smoothness on the underlying probability distribution
-
-    normalize: boolean (default False)
-        if True, the data is normalised to the unit interval before the computation
 
     norm: 1, 2, or np.inf (default np.inf)
         p-norm used when computing k-nearest neighbour distances
@@ -184,10 +181,6 @@ def get_h(x, k=1, normalize=False, norm=np.inf, min_dist=0.):
 
     N, d = x.shape
 
-    if normalize:
-        import warnings
-        warnings.warn('Normalisation fundamentally breaks the KL-estimator! Only use option if you know what you are doing.')
-        x = normalise_to_unit_interval(x)
 
     # volume of the d-dimensional unit ball...
     # if norm == np.inf: # max norm:
@@ -235,8 +228,8 @@ def get_mi(x, y, k=1, normalize=False, norm=np.inf, estimator='ksg'):
         kth nearest neighbour to use in density estimate;
         imposes smoothness on the underlying probability distribution
 
-    normalize: boolean (default False)
-        if True, the data is normalised to the unit interval before computation
+    normalize: function or None (default None)
+        if a function, the data pre-processed with the function before the computation
 
     norm: 1, 2, or np.inf (default np.inf)
         p-norm used when computing k-nearest neighbour distances
@@ -615,14 +608,14 @@ def get_mvn_data(total_rvs, dimensionality=2, scale_sigma_offdiagonal_by=1., tot
     return [samples[:,ii*d:(ii+1)*d] for ii in range(total_rvs)]
 
 
-def test_get_h(k=5, normalize=False, norm=np.inf):
+def test_get_h(k=5, norm=np.inf):
     X, = get_mvn_data(total_rvs=1,
                       dimensionality=2,
                       scale_sigma_offdiagonal_by=1.,
                       total_samples=1000)
 
     analytic = get_h_mvn(X)
-    kozachenko = get_h(X, k, normalize, norm)
+    kozachenko = get_h(X, k=k, norm=norm)
 
     print "analytic result: {: .5f}".format(analytic)
     print "K-L estimator: {: .5f}".format(kozachenko)
