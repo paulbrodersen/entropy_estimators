@@ -620,8 +620,8 @@ def test_get_h(k=5, norm=np.inf):
     analytic = get_h_mvn(X)
     kozachenko = get_h(X, k=k, norm=norm)
 
-    print "analytic result: {: .5f}".format(analytic)
-    print "K-L estimator: {: .5f}".format(kozachenko)
+    print("analytic result: {:.5f}".format(analytic))
+    print("K-L estimator:   {:.5f}".format(kozachenko))
 
 
 def test_get_mi(k=5, normalize=None, norm=np.inf):
@@ -636,9 +636,17 @@ def test_get_mi(k=5, normalize=None, norm=np.inf):
     naive = get_mi(X, Y, k=k, normalize=normalize, norm=norm, estimator='naive')
     ksg   = get_mi(X, Y, k=k, normalize=normalize, norm=norm, estimator='ksg')
 
-    print "analytic result: {: .5f}".format(analytic)
-    print "naive estimator: {: .5f}".format(naive)
-    print "KSG estimator:   {: .5f}".format(ksg)
+    print("analytic result:  {:.5f}".format(analytic))
+    print("naive estimator:  {:.5f}".format(naive))
+    print("KSG estimator:    {:.5f}".format(ksg))
+    print
+
+    print("naive - analytic: {:.5f}".format(naive - analytic))
+    print("ksg   - analytic: {:.5f}".format(ksg   - analytic))
+    print
+
+    print("naive / analytic: {:.5f}".format(naive / analytic))
+    print("ksg   / analytic: {:.5f}".format(ksg   / analytic))
     print
 
     # for automated testing:
@@ -658,9 +666,9 @@ def test_get_pmi(k=5, normalize=None, norm=np.inf):
     naive    = get_pmi(X, Y, Z, k=k, normalize=normalize, norm=norm, estimator='naive')
     fp       = get_pmi(X, Y, Z, k=k, normalize=normalize, norm=norm, estimator='fp')
 
-    print "analytic result: {: .5f}".format(analytic)
-    print "naive estimator: {: .5f}".format(naive)
-    print "FP estimator:   {: .5f}".format(fp)
+    print("analytic result : {:.5f}".format(analytic))
+    print("naive estimator : {:.5f}".format(naive))
+    print("FP estimator    : {:.5f}".format(fp))
     print
 
     # for automated testing:
