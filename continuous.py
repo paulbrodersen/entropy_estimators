@@ -182,8 +182,7 @@ def get_h(x, k=1, norm=np.inf, min_dist=0.):
         entropy H(X)
     """
 
-    N, d = x.shape
-
+    n, d = x.shape
 
     # volume of the d-dimensional unit ball...
     # if norm == np.inf: # max norm:
@@ -207,7 +206,7 @@ def get_h(x, k=1, norm=np.inf, min_dist=0.):
     distances[distances < min_dist] = min_dist
 
     sum_log_dist = np.sum(log(2*distances)) # where did the 2 come from? radius -> diameter
-    h = -digamma(k) + digamma(N) + log_c_d + (d / float(N)) * sum_log_dist
+    h = -digamma(k) + digamma(n) + log_c_d + (d / float(n)) * sum_log_dist
 
     return h
 
@@ -288,17 +287,17 @@ def get_mi(x, y, k=1, normalize=None, norm=np.inf, estimator='ksg'):
         # for each point, count the number of neighbours
         # whose distance in the x-subspace is strictly < epsilon
         # repeat for the y subspace
-        N = len(x)
-        nx = np.empty(N, dtype=np.int)
-        ny = np.empty(N, dtype=np.int)
-        for ii in xrange(N):
+        n = len(x)
+        nx = np.empty(n, dtype=np.int)
+        ny = np.empty(n, dtype=np.int)
+        for ii in range(n):
             # nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=norm)) - 1
             # ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=norm)) - 1
             nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
             ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
 
-        mi = digamma(k) - np.mean(digamma(nx+1) + digamma(ny+1)) + digamma(N) # version (1)
-        # mi = digamma(k) -1./k -np.mean(digamma(nx) + digamma(ny)) + digamma(N) # version (2)
+        mi = digamma(k) - np.mean(digamma(nx+1) + digamma(ny+1)) + digamma(n) # version (1)
+        # mi = digamma(k) -1./k -np.mean(digamma(nx) + digamma(ny)) + digamma(n) # version (2)
 
     elif estimator == 'lnc':
         # TODO: (only if you can find some decent explanation on how to set alpha!)
@@ -389,10 +388,10 @@ def get_pmi(x, y, z, k=1, normalize=None, norm=np.inf, estimator='fp'):
 
         # for each point, count the number of neighbours
         # whose distance in the relevant subspace is strictly < epsilon
-        N, _ = x.shape
-        nxz = np.empty(N, dtype=np.int)
-        nyz = np.empty(N, dtype=np.int)
-        nz  = np.empty(N, dtype=np.int)
+        n = len(x)
+        nxz = np.empty(n, dtype=np.int)
+        nyz = np.empty(n, dtype=np.int)
+        nz  = np.empty(n, dtype=np.int)
 
         for ii in range(n):
             # nz[ii]  = len( z_tree.query_ball_point( z_tree.data[ii], r=epsilon[ii], p=norm)) - 1
@@ -413,15 +412,16 @@ def get_pmi(x, y, z, k=1, normalize=None, norm=np.inf, estimator='fp'):
         yz_tree  = cKDTree(yz,  leafsize=2*k)
 
         # determine k-nn distances
-        rxz = np.empty(N, dtype=np.int)
-        ryz = np.empty(N, dtype=np.int)
+        n = len(x)
+        rxz = np.empty(n, dtype=np.int)
+        ryz = np.empty(n, dtype=np.int)
 
         # rxz, dummy = xz_tree.query(xz, k=k+1, p=norm) # +1 to account for distance to itself
         # ryz, dummy = yz_tree.query(xz, k=k+1, p=norm) # +1 to account for distance to itself; xz NOT a typo
         rxz, dummy = xz_tree.query(xz, k=k+1, p=np.inf) # +1 to account for distance to itself
         ryz, dummy = yz_tree.query(xz, k=k+1, p=np.inf) # +1 to account for distance to itself; xz NOT a typo
 
-        pmi = yz.shape[1] * np.mean(log(ryz[:,-1]) - log(rxz[:,-1])) # + log(N) -log(N-1) -1.
+        pmi = yz.shape[1] * np.mean(log(ryz[:,-1]) - log(rxz[:,-1])) # + log(n) -log(n-1) -1.
 
     else:
         raise NotImplementedError("Estimator one of 'naive', 'fp', 'ps'; currently: {}".format(estimator))
@@ -474,8 +474,8 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm=np.inf):
 
     y_tree  = cKDTree(y)
 
-    N = len(y)
-    i_spec = np.zeros((2, N))
+    n = len(y)
+    i_spec = np.zeros((2, n))
 
     for jj, x in enumerate([x1, x2]):
 
@@ -499,15 +499,15 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm=np.inf):
         # for each point, count the number of neighbours
         # whose distance in the x-subspace is strictly < epsilon
         # repeat for the y subspace
-        nx = np.empty(N, dtype=np.int)
-        ny = np.empty(N, dtype=np.int)
+        nx = np.empty(n, dtype=np.int)
+        ny = np.empty(n, dtype=np.int)
         for ii in xrange(N):
             # nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=norm)) - 1
             # ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=norm)) - 1
             nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
             ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
 
-        i_spec[jj] = digamma(k) - digamma(nx+1) + digamma(ny+1) + digamma(N) # version (1)
+        i_spec[jj] = digamma(k) - digamma(nx+1) + digamma(ny+1) + digamma(n) # version (1)
 
     i_min = np.mean(np.min(i_spec, 0))
 
