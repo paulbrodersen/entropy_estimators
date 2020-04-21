@@ -648,6 +648,7 @@ def test_get_h_1d(k=5, norm='max'):
 
     print("analytic result: {:.5f}".format(analytic))
     print("K-L estimator:   {:.5f}".format(kozachenko))
+    assert np.isclose(analytic, kozachenko, rtol=0.1, atol=0.1), "K-L estimate strongly differs from analytic expectation!"
 
 
 def test_get_h(k=5, norm='max'):
@@ -661,6 +662,7 @@ def test_get_h(k=5, norm='max'):
 
     print("analytic result: {:.5f}".format(analytic))
     print("K-L estimator:   {:.5f}".format(kozachenko))
+    assert np.isclose(analytic, kozachenko, rtol=0.1, atol=0.1), "K-L estimate strongly differs from analytic expectation!"
 
 
 def test_get_mi(k=5, normalize=None, norm='max'):
