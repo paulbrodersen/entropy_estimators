@@ -21,7 +21,7 @@
 
 """
 TODO:
-- fix code for p-norm 1 and 2 (norm argument currently ignored)
+- test code for Euclidean norm
 - write test for get_pid()
 - get_pmi() with normalisation fails test
 """
@@ -178,7 +178,7 @@ def get_pmi_mvn(x, y, z):
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_h(x, k=1, norm=np.inf, min_dist=0.):
+def get_h(x, k=1, norm='max', min_dist=0.):
     """
     Estimates the entropy H of a random variable x (in nats) based on
     the kth-nearest neighbour distances between point samples.
@@ -195,11 +195,8 @@ def get_h(x, k=1, norm=np.inf, min_dist=0.):
         kth nearest neighbour to use in density estimate;
         imposes smoothness on the underlying probability distribution
 
-    norm: 1, 2, or np.inf (default np.inf)
+    norm: 'euclidean' or 'max'
         p-norm used when computing k-nearest neighbour distances
-            1: absolute-value norm
-            2: euclidean norm
-            3: max norm
 
     min_dist: float (default 0.)
         minimum distance between data points;
@@ -213,22 +210,20 @@ def get_h(x, k=1, norm=np.inf, min_dist=0.):
 
     n, d = x.shape
 
-    # volume of the d-dimensional unit ball...
-    # if norm == np.inf: # max norm:
-    #     log_c_d = 0
-    # elif norm == 2: # euclidean norm
-    #     log_c_d = (d/2.) * log(np.pi) -log(gamma(d/2. +1))
-    # elif norm == 1:
-    #     raise NotImplementedError
-    # else:
-    #     raise NotImplementedError("Variable 'norm' either 1, 2 or np.inf")
-    log_c_d = 0.
+    if norm == 'max': # max norm:
+        p = np.inf
+        log_c_d = 0 # volume of the d-dimensional unit ball
+    elif norm == 'euclidean': # euclidean norm
+        p = 2
+        log_c_d = (d/2.) * log(np.pi) -log(gamma(d/2. +1))
+    else:
+        raise NotImplementedError("Variable 'norm' either 'max' or 'euclidean'")
 
     kdtree = cKDTree(x)
 
     # query all points -- k+1 as query point also in initial set
     # distances, _ = kdtree.query(x, k + 1, eps=0, p=norm)
-    distances, _ = kdtree.query(x, k + 1, eps=0, p=np.inf)
+    distances, _ = kdtree.query(x, k + 1, eps=0, p=p)
     distances = distances[:, -1]
 
     # enforce non-zero distances
@@ -241,7 +236,7 @@ def get_h(x, k=1, norm=np.inf, min_dist=0.):
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_mi(x, y, k=1, normalize=None, norm=np.inf, estimator='ksg'):
+def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg'):
     """
     Estimates the mutual information (in nats) between two point clouds, x and y,
     in a D-dimensional space.
@@ -263,11 +258,8 @@ def get_mi(x, y, k=1, normalize=None, norm=np.inf, estimator='ksg'):
     normalize: function or None (default None)
         if a function, the data pre-processed with the function before the computation
 
-    norm: 1, 2, or np.inf (default np.inf)
+    norm: 'euclidean' or 'max'
         p-norm used when computing k-nearest neighbour distances
-            1: absolute-value norm
-            2: euclidean norm
-            3: max norm
 
     min_dist: float (default 0.)
         minimum distance between data points;
@@ -309,9 +301,14 @@ def get_mi(x, y, k=1, normalize=None, norm=np.inf, estimator='ksg'):
         xy_tree = cKDTree(xy)
 
         # kth nearest neighbour distances for every state
+        if norm == 'max': # max norm:
+            p = np.inf
+        elif norm == 'euclidean': # euclidean norm
+            p = 2
+        else:
+            raise NotImplementedError("Variable 'norm' either 'max' or 'euclidean'")
         # query with k=k+1 to return the nearest neighbour, not counting the data point itself
-        # dist, _ = xy_tree.query(xy, k=k+1, p=norm)
-        dist, _ = xy_tree.query(xy, k=k+1, p=np.inf)
+        dist, _ = xy_tree.query(xy, k=k+1, p=p)
         epsilon = dist[:, -1]
 
         # for each point, count the number of neighbours
@@ -321,10 +318,8 @@ def get_mi(x, y, k=1, normalize=None, norm=np.inf, estimator='ksg'):
         nx = np.empty(n, dtype=np.int)
         ny = np.empty(n, dtype=np.int)
         for ii in range(n):
-            # nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=norm)) - 1
-            # ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=norm)) - 1
-            nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
-            ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
+            nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=p)) - 1
+            ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=p)) - 1
 
         mi = digamma(k) - np.mean(digamma(nx+1) + digamma(ny+1)) + digamma(n) # version (1)
         # mi = digamma(k) -1./k -np.mean(digamma(nx) + digamma(ny)) + digamma(n) # version (2)
@@ -340,7 +335,7 @@ def get_mi(x, y, k=1, normalize=None, norm=np.inf, estimator='ksg'):
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_pmi(x, y, z, k=1, normalize=None, norm=np.inf, estimator='fp'):
+def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp'):
     """
     Estimates the partial mutual information (in nats), i.e. the
     information between two point clouds, x and y, in a D-dimensional
@@ -366,11 +361,8 @@ def get_pmi(x, y, z, k=1, normalize=None, norm=np.inf, estimator='fp'):
     normalize: function or None (default None)
         if a function, the data pre-processed with the function before the computation
 
-    norm: 1, 2, or np.inf (default np.inf)
+    norm: 'euclidean' or 'max'
         p-norm used when computing k-nearest neighbour distances
-            1: absolute-value norm
-            2: euclidean norm
-            3: max norm
 
     estimator: 'fp', 'ps' or 'naive' (default 'fp')
         'naive': entropies are calculated individually using the Kozachenko-Leonenko estimator implemented in get_h()
@@ -412,9 +404,14 @@ def get_pmi(x, y, z, k=1, normalize=None, norm=np.inf, estimator='fp'):
         xyz_tree = cKDTree(xyz)
 
         # kth nearest neighbour distances for every state
+        if norm == 'max': # max norm:
+            p = np.inf
+        elif norm == 'euclidean': # euclidean norm
+            p = 2
+        else:
+            raise NotImplementedError("Variable 'norm' either 'max' or 'euclidean'")
         # query with k=k+1 to return the nearest neighbour, not the data point itself
-        # dist, _ = xyz_tree.query(xyz, k=k+1, p=norm)
-        dist, _ = xyz_tree.query(xyz, k=k+1, p=np.inf)
+        dist, _ = xyz_tree.query(xyz, k=k+1, p=p)
         epsilon = dist[:, -1]
 
         # for each point, count the number of neighbours
@@ -425,17 +422,14 @@ def get_pmi(x, y, z, k=1, normalize=None, norm=np.inf, estimator='fp'):
         nz  = np.empty(n, dtype=np.int)
 
         for ii in range(n):
-            # nz[ii]  = len( z_tree.query_ball_point( z_tree.data[ii], r=epsilon[ii], p=norm)) - 1
-            # nxz[ii] = len(xz_tree.query_ball_point(xz_tree.data[ii], r=epsilon[ii], p=norm)) - 1
-            # nyz[ii] = len(yz_tree.query_ball_point(yz_tree.data[ii], r=epsilon[ii], p=norm)) - 1
-            nz[ii]  = len( z_tree.query_ball_point( z_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
-            nxz[ii] = len(xz_tree.query_ball_point(xz_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
-            nyz[ii] = len(yz_tree.query_ball_point(yz_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
+            nz[ii]  = len( z_tree.query_ball_point( z_tree.data[ii], r=epsilon[ii], p=p)) - 1
+            nxz[ii] = len(xz_tree.query_ball_point(xz_tree.data[ii], r=epsilon[ii], p=p)) - 1
+            nyz[ii] = len(yz_tree.query_ball_point(yz_tree.data[ii], r=epsilon[ii], p=p)) - 1
 
         pmi = digamma(k) + np.mean(digamma(nz +1) -digamma(nxz +1) -digamma(nyz +1))
 
     elif estimator == 'ps':
-        # (I am fairly sure that) this is the correct implementation of the estimator,
+        # I am fairly sure that this is the correct implementation of the estimator,
         # but the estimators is just crap.
 
         # construct k-d trees
@@ -447,10 +441,14 @@ def get_pmi(x, y, z, k=1, normalize=None, norm=np.inf, estimator='fp'):
         rxz = np.empty(n, dtype=np.int)
         ryz = np.empty(n, dtype=np.int)
 
-        # rxz, dummy = xz_tree.query(xz, k=k+1, p=norm) # +1 to account for distance to itself
-        # ryz, dummy = yz_tree.query(xz, k=k+1, p=norm) # +1 to account for distance to itself; xz NOT a typo
-        rxz, dummy = xz_tree.query(xz, k=k+1, p=np.inf) # +1 to account for distance to itself
-        ryz, dummy = yz_tree.query(xz, k=k+1, p=np.inf) # +1 to account for distance to itself; xz NOT a typo
+        if norm == 'max': # max norm:
+            p = np.inf
+        elif norm == 'euclidean': # euclidean norm
+            p = 2
+        else:
+            raise NotImplementedError("Variable 'norm' either 'max' or 'euclidean'")
+        rxz, _ = xz_tree.query(xz, k=k+1, p=p) # +1 to account for distance to itself
+        ryz, _ = yz_tree.query(xz, k=k+1, p=p) # +1 to account for distance to itself; xz NOT a typo
 
         pmi = yz.shape[1] * np.mean(log(ryz[:,-1]) - log(rxz[:,-1])) # + log(n) -log(n-1) -1.
 
@@ -461,7 +459,7 @@ def get_pmi(x, y, z, k=1, normalize=None, norm=np.inf, estimator='fp'):
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_imin(x1, x2, y, k=1, normalize=None, norm=np.inf):
+def get_imin(x1, x2, y, k=1, normalize=None, norm='max'):
     """
     Estimates the average specific information (in nats) between a random variable Y
     and two explanatory variables, X1 and X2.
@@ -488,11 +486,8 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm=np.inf):
     normalize: function or None (default None)
         if a function, the data pre-processed with the function before the computation
 
-    norm: 1, 2, or np.inf (default np.inf)
+    norm: 'euclidean' or 'max'
         p-norm used when computing k-nearest neighbour distances
-            1: absolute-value norm
-            2: euclidean norm
-            3: max norm
 
     Returns:
     --------
@@ -503,6 +498,13 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm=np.inf):
 
     if normalize:
         y = normalize(y)
+
+    if norm == 'max': # max norm:
+        p = np.inf
+    elif norm == 'euclidean': # euclidean norm
+        p = 2
+    else:
+        raise NotImplementedError("Variable 'norm' either 'max' or 'euclidean'")
 
     y_tree  = cKDTree(y)
 
@@ -525,7 +527,7 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm=np.inf):
         # kth nearest neighbour distances for every state
         # query with k=k+1 to return the nearest neighbour, not counting the data point itself
         # dist, _ = xy_tree.query(xy, k=k+1, p=norm)
-        dist, _ = xy_tree.query(xy, k=k+1, p=np.inf)
+        dist, _ = xy_tree.query(xy, k=k+1, p=p)
         epsilon = dist[:, -1]
 
         # for each point, count the number of neighbours
@@ -534,10 +536,8 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm=np.inf):
         nx = np.empty(n, dtype=np.int)
         ny = np.empty(n, dtype=np.int)
         for ii in range(N):
-            # nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=norm)) - 1
-            # ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=norm)) - 1
-            nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
-            ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
+            nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=p)) - 1
+            ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=p)) - 1
 
         i_spec[jj] = digamma(k) - digamma(nx+1) + digamma(ny+1) + digamma(n) # version (1)
 
@@ -547,7 +547,7 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm=np.inf):
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_pid(x1, x2, y, k=1, normalize=None, norm=np.inf):
+def get_pid(x1, x2, y, k=1, normalize=None, norm='max'):
 
     """
     Estimates the partial information decomposition (in nats) between a random variable Y
@@ -582,11 +582,8 @@ def get_pid(x1, x2, y, k=1, normalize=None, norm=np.inf):
     normalize: function or None (default None)
         if a function, the data pre-processed with the function before the computation
 
-    norm: 1, 2, or np.inf (default np.inf)
+    norm: 'euclidean' or 'max'
         p-norm used when computing k-nearest neighbour distances
-            1: absolute-value norm
-            2: euclidean norm
-            3: max norm
 
     Returns:
     --------
@@ -643,7 +640,7 @@ def get_mvn_data(total_rvs, dimensionality=2, scale_sigma_offdiagonal_by=1., tot
     return [samples[:,ii*d:(ii+1)*d] for ii in range(total_rvs)]
 
 
-def test_get_h_1d(k=5, norm=np.inf):
+def test_get_h_1d(k=5, norm='max'):
     X = np.random.randn(1000)
 
     analytic = get_h_mvn(X)
@@ -653,7 +650,7 @@ def test_get_h_1d(k=5, norm=np.inf):
     print("K-L estimator:   {:.5f}".format(kozachenko))
 
 
-def test_get_h(k=5, norm=np.inf):
+def test_get_h(k=5, norm='max'):
     X, = get_mvn_data(total_rvs=1,
                       dimensionality=2,
                       scale_sigma_offdiagonal_by=1.,
@@ -666,7 +663,7 @@ def test_get_h(k=5, norm=np.inf):
     print("K-L estimator:   {:.5f}".format(kozachenko))
 
 
-def test_get_mi(k=5, normalize=None, norm=np.inf):
+def test_get_mi(k=5, normalize=None, norm='max'):
 
     X, Y = get_mvn_data(total_rvs=2,
                         dimensionality=2,
@@ -693,7 +690,7 @@ def test_get_mi(k=5, normalize=None, norm=np.inf):
     assert np.isclose(analytic, ksg,   rtol=0.1, atol=0.1), "KSG MI estimate strongly differs from expectation!"
 
 
-def test_get_pmi(k=5, normalize=None, norm=np.inf):
+def test_get_pmi(k=5, normalize=None, norm='max'):
 
     X, Y, Z = get_mvn_data(total_rvs=3,
                            dimensionality=2,
@@ -714,7 +711,7 @@ def test_get_pmi(k=5, normalize=None, norm=np.inf):
     assert np.isclose(analytic, fp,    rtol=0.5, atol=0.5), "FP MI estimate strongly differs from expectation!"
 
 
-def test_get_pid(k=5, normalize=None, norm=np.inf):
+def test_get_pid(k=5, normalize=None, norm='max'):
     # rdn -> only redundant information
 
     # unq -> only unique information
