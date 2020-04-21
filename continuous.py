@@ -324,10 +324,6 @@ def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg'):
         mi = digamma(k) - np.mean(digamma(nx+1) + digamma(ny+1)) + digamma(n) # version (1)
         # mi = digamma(k) -1./k -np.mean(digamma(nx) + digamma(ny)) + digamma(n) # version (2)
 
-    elif estimator == 'lnc':
-        # TODO: (only if you can find some decent explanation on how to set alpha!)
-        raise NotImplementedError("Estimator is one of 'naive', 'ksg'; currently: {}".format(estimator))
-
     else:
         raise NotImplementedError("Estimator is one of 'naive', 'ksg'; currently: {}".format(estimator))
 
