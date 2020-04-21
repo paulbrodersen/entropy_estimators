@@ -1,0 +1,6 @@
+TODO
+
+- test code with Euclidean norm
+- write test for get_pid
+- investigate, why get_pmi fails with normalisation
+- handle specification of logarithm base in a better way

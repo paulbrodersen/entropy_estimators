@@ -19,13 +19,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-"""
-TODO:
-- test code for Euclidean norm
-- write test for get_pid()
-- get_pmi() with normalisation fails test
-"""
-
 import numpy as np
 import itertools
 import functools
