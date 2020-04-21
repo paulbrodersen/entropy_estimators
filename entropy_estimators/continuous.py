@@ -19,13 +19,12 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-import numpy as np
-import itertools
 import functools
+import numpy as np
 
 from scipy.spatial import cKDTree
 from scipy.special import gamma, digamma
-from scipy.stats   import multivariate_normal, rankdata
+from scipy.stats   import rankdata
 
 
 log = np.log   # i.e. information measures are in nats

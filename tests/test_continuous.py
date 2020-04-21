@@ -18,7 +18,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from continuous import *
+import itertools
+import numpy as np
+
+from scipy.stats import multivariate_normal
+
+from entropy_estimators.continuous import (
+    get_h,
+    get_h_mvn,
+    get_mi,
+    get_mi_mvn,
+    get_pmi,
+    get_pmi_mvn,
+)
 
 
 def get_mvn_data(total_rvs, dimensionality=2, scale_sigma_offdiagonal_by=1., total_samples=1000):
@@ -67,7 +79,7 @@ def test_get_h_1d(k=5, norm='max'):
     X = np.random.randn(1000)
 
     analytic = get_h_mvn(X)
-    kozachenko = get_h(x, k=k, norm=norm)
+    kozachenko = get_h(X, k=k, norm=norm)
 
     print("analytic result: {:.5f}".format(analytic))
     print("K-L estimator:   {:.5f}".format(kozachenko))
