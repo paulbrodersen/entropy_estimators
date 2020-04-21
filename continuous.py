@@ -197,8 +197,8 @@ def get_h(x, k=1, norm=np.inf, min_dist=0.):
     kdtree = cKDTree(x)
 
     # query all points -- k+1 as query point also in initial set
-    # distances, idx = kdtree.query(x, k + 1, eps=0, p=norm)
-    distances, idx = kdtree.query(x, k + 1, eps=0, p=np.inf)
+    # distances, _ = kdtree.query(x, k + 1, eps=0, p=norm)
+    distances, _ = kdtree.query(x, k + 1, eps=0, p=np.inf)
     distances = distances[:, -1]
 
     # enforce non-zero distances
@@ -279,8 +279,8 @@ def get_mi(x, y, k=1, normalize=None, norm=np.inf, estimator='ksg'):
 
         # kth nearest neighbour distances for every state
         # query with k=k+1 to return the nearest neighbour, not counting the data point itself
-        # dist, idx = xy_tree.query(xy, k=k+1, p=norm)
-        dist, idx = xy_tree.query(xy, k=k+1, p=np.inf)
+        # dist, _ = xy_tree.query(xy, k=k+1, p=norm)
+        dist, _ = xy_tree.query(xy, k=k+1, p=np.inf)
         epsilon = dist[:, -1]
 
         # for each point, count the number of neighbours
@@ -381,8 +381,8 @@ def get_pmi(x, y, z, k=1, normalize=None, norm=np.inf, estimator='fp'):
 
         # kth nearest neighbour distances for every state
         # query with k=k+1 to return the nearest neighbour, not the data point itself
-        # dist, idx = xyz_tree.query(xyz, k=k+1, p=norm)
-        dist, idx = xyz_tree.query(xyz, k=k+1, p=np.inf)
+        # dist, _ = xyz_tree.query(xyz, k=k+1, p=norm)
+        dist, _ = xyz_tree.query(xyz, k=k+1, p=np.inf)
         epsilon = dist[:, -1]
 
         # for each point, count the number of neighbours
@@ -491,8 +491,8 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm=np.inf):
 
         # kth nearest neighbour distances for every state
         # query with k=k+1 to return the nearest neighbour, not counting the data point itself
-        # dist, idx = xy_tree.query(xy, k=k+1, p=norm)
-        dist, idx = xy_tree.query(xy, k=k+1, p=np.inf)
+        # dist, _ = xy_tree.query(xy, k=k+1, p=norm)
+        dist, _ = xy_tree.query(xy, k=k+1, p=np.inf)
         epsilon = dist[:, -1]
 
         # for each point, count the number of neighbours
