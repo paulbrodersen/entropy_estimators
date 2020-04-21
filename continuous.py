@@ -21,7 +21,6 @@
 
 """
 TODO:
-- make python3 compatible
 - fix code for p-norm 1 and 2 (norm argument currently ignored)
 - write test for get_pid()
 - get_pmi() with normalisation fails test
@@ -501,7 +500,7 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm=np.inf):
         # repeat for the y subspace
         nx = np.empty(n, dtype=np.int)
         ny = np.empty(n, dtype=np.int)
-        for ii in xrange(N):
+        for ii in range(N):
             # nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=norm)) - 1
             # ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=norm)) - 1
             nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=np.inf)) - 1
@@ -601,7 +600,7 @@ def get_mvn_data(total_rvs, dimensionality=2, scale_sigma_offdiagonal_by=1., tot
 
     # scale off-block diagonal entries
     d = dimensionality
-    for ii, jj in itertools.product(range(total_rvs), repeat=2):
+    for ii, jj in itertools.product(list(range(total_rvs)), repeat=2):
         if ii != jj:
             sigma[d*ii:d*(ii+1), d*jj:d*(jj+1)] *= scale_sigma_offdiagonal_by
 
@@ -639,15 +638,12 @@ def test_get_mi(k=5, normalize=None, norm=np.inf):
     print("analytic result:  {:.5f}".format(analytic))
     print("naive estimator:  {:.5f}".format(naive))
     print("KSG estimator:    {:.5f}".format(ksg))
-    print
 
     print("naive - analytic: {:.5f}".format(naive - analytic))
     print("ksg   - analytic: {:.5f}".format(ksg   - analytic))
-    print
 
     print("naive / analytic: {:.5f}".format(naive / analytic))
     print("ksg   / analytic: {:.5f}".format(ksg   / analytic))
-    print
 
     # for automated testing:
     assert np.isclose(analytic, naive, rtol=0.1, atol=0.1), "Naive MI estimate strongly differs from expectation!"
@@ -669,7 +665,6 @@ def test_get_pmi(k=5, normalize=None, norm=np.inf):
     print("analytic result : {:.5f}".format(analytic))
     print("naive estimator : {:.5f}".format(naive))
     print("FP estimator    : {:.5f}".format(fp))
-    print
 
     # for automated testing:
     assert np.isclose(analytic, naive, rtol=0.5, atol=0.5), "Naive MI estimate strongly differs from expectation!"
