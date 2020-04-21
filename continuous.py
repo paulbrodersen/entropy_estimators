@@ -28,6 +28,8 @@ TODO:
 
 import numpy as np
 import itertools
+import functools
+
 from scipy.spatial import cKDTree
 from scipy.special import gamma, digamma
 from scipy.stats   import multivariate_normal, rankdata
@@ -35,6 +37,30 @@ from scipy.stats   import multivariate_normal, rankdata
 
 log = np.log   # i.e. information measures are in nats
 # log = np.log2  # i.e. information measures are in bits
+
+
+def convert_vectors_to_2d_arrays_if_any(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        args = list(args)
+        for ii, arg in enumerate(args):
+            if isinstance(arg, (list, tuple, np.ndarray)):
+                if np.ndim(arg) == 1:
+                    args[ii] = np.array(arg)[:, np.newaxis]
+                elif np.ndim(arg) == 2:
+                    pass
+                else:
+                    raise ValueError("Arrays should have one or two dimensions.")
+        for k, v in kwargs.items():
+            if isinstance(v, (list, tuple, np.ndarray)):
+                if np.ndim(v) == 1:
+                    kwargs[k] = v[:, np.newaxis]
+                elif np.ndim(v) == 2:
+                    pass
+                else:
+                    raise ValueError("Arrays should have one or two dimensions.")
+        return func(*args, **kwargs)
+    return wrapper
 
 
 def unit_interval(arr):
@@ -52,6 +78,7 @@ def det(array_or_scalar):
         return array_or_scalar
 
 
+@convert_vectors_to_2d_arrays_if_any
 def get_h_mvn(x):
 
     """
@@ -75,6 +102,7 @@ def get_h_mvn(x):
     return h
 
 
+@convert_vectors_to_2d_arrays_if_any
 def get_mi_mvn(x, y):
     """
     Computes the mutual information I between two multivariate normal random
@@ -113,6 +141,7 @@ def get_mi_mvn(x, y):
     return mi
 
 
+@convert_vectors_to_2d_arrays_if_any
 def get_pmi_mvn(x, y, z):
     """
     Computes the partial mutual information PMI between two multivariate normal random
@@ -148,6 +177,7 @@ def get_pmi_mvn(x, y, z):
     return pmi
 
 
+@convert_vectors_to_2d_arrays_if_any
 def get_h(x, k=1, norm=np.inf, min_dist=0.):
     """
     Estimates the entropy H of a random variable x (in nats) based on
@@ -210,6 +240,7 @@ def get_h(x, k=1, norm=np.inf, min_dist=0.):
     return h
 
 
+@convert_vectors_to_2d_arrays_if_any
 def get_mi(x, y, k=1, normalize=None, norm=np.inf, estimator='ksg'):
     """
     Estimates the mutual information (in nats) between two point clouds, x and y,
@@ -308,6 +339,7 @@ def get_mi(x, y, k=1, normalize=None, norm=np.inf, estimator='ksg'):
     return mi
 
 
+@convert_vectors_to_2d_arrays_if_any
 def get_pmi(x, y, z, k=1, normalize=None, norm=np.inf, estimator='fp'):
     """
     Estimates the partial mutual information (in nats), i.e. the
@@ -428,6 +460,7 @@ def get_pmi(x, y, z, k=1, normalize=None, norm=np.inf, estimator='fp'):
     return pmi
 
 
+@convert_vectors_to_2d_arrays_if_any
 def get_imin(x1, x2, y, k=1, normalize=None, norm=np.inf):
     """
     Estimates the average specific information (in nats) between a random variable Y
@@ -513,6 +546,7 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm=np.inf):
     return i_min
 
 
+@convert_vectors_to_2d_arrays_if_any
 def get_pid(x1, x2, y, k=1, normalize=None, norm=np.inf):
 
     """
@@ -581,7 +615,6 @@ def get_pid(x1, x2, y, k=1, normalize=None, norm=np.inf):
 
 # --------------------------------------------------------------------------------
 
-
 def get_mvn_data(total_rvs, dimensionality=2, scale_sigma_offdiagonal_by=1., total_samples=1000):
     data_space_size = total_rvs * dimensionality
 
@@ -608,6 +641,16 @@ def get_mvn_data(total_rvs, dimensionality=2, scale_sigma_offdiagonal_by=1., tot
     samples = multivariate_normal(mu, sigma).rvs(total_samples)
 
     return [samples[:,ii*d:(ii+1)*d] for ii in range(total_rvs)]
+
+
+def test_get_h_1d(k=5, norm=np.inf):
+    X = np.random.randn(1000)
+
+    analytic = get_h_mvn(X)
+    kozachenko = get_h(x, k=k, norm=norm)
+
+    print("analytic result: {:.5f}".format(analytic))
+    print("K-L estimator:   {:.5f}".format(kozachenko))
 
 
 def test_get_h(k=5, norm=np.inf):
