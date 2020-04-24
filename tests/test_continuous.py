@@ -32,6 +32,8 @@ from entropy_estimators.continuous import (
     get_pmi_mvn,
 )
 
+# set random seed
+np.random.seed(42)
 
 def get_mvn_data(total_rvs, dimensionality=2, scale_sigma_offdiagonal_by=1., total_samples=1000):
     data_space_size = total_rvs * dimensionality
