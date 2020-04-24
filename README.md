@@ -16,6 +16,14 @@ et al (2004), and Frenzel and Pombe (2007).
 
 Pendants for discrete variables will be added at a later date.
 
+## Installation
+
+Easiest via pip:
+
+``` shell
+pip install entropy_estimators
+```
+
 ## Examples
 
 ```python
@@ -23,10 +31,8 @@ Pendants for discrete variables will be added at a later date.
 import numpy
 from entropy_estimators import continuous
 
-# create some multivariate normal test data
-X, = continous.get_mvn_data(total_rvs=1,        # number of random variables
-                            dimensionality=2,   # dimensionality of each RV
-                            total_samples=1000) # samples
+# create some normal test data
+X = np.random.randn(10000, 2)
 
 # compute the entropy from the determinant of the multivariate normal distribution:
 analytic = continuous.get_h_mvn(X)
@@ -35,7 +41,7 @@ analytic = continuous.get_h_mvn(X)
 # developed by Kozachenko and Leonenko (1987):
 kozachenko = continuous.get_h(X, k=5)
 
-print "analytic result: {: .5f}".format(analytic)
-print "K-L estimator: {: .5f}".format(kozachenko)
+print(f"analytic result: {analytic:.5f}")
+print(f"K-L estimator: {kozachenko:.5f}")
 
 ```
