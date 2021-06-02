@@ -28,7 +28,7 @@ pip install entropy_estimators
 
 ```python
 
-import numpy
+import numpy as np
 from entropy_estimators import continuous
 
 # create some normal test data
