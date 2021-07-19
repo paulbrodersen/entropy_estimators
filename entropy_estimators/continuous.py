@@ -22,7 +22,7 @@
 import functools
 import numpy as np
 
-from scipy.spatial import cKDTree
+from scipy.spatial import KDTree
 from scipy.special import gamma, digamma
 from scipy.stats   import rankdata
 
@@ -211,7 +211,7 @@ def get_h(x, k=1, norm='max', min_dist=0.):
     else:
         raise NotImplementedError("Variable 'norm' either 'max' or 'euclidean'")
 
-    kdtree = cKDTree(x)
+    kdtree = KDTree(x)
 
     # query all points -- k+1 as query point also in initial set
     # distances, _ = kdtree.query(x, k + 1, eps=0, p=norm)
@@ -288,9 +288,9 @@ def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg'):
 
         # store data pts in kd-trees for efficient nearest neighbour computations
         # TODO: choose a better leaf size
-        x_tree  = cKDTree(x)
-        y_tree  = cKDTree(y)
-        xy_tree = cKDTree(xy)
+        x_tree  = KDTree(x)
+        y_tree  = KDTree(y)
+        xy_tree = KDTree(xy)
 
         # kth nearest neighbour distances for every state
         if norm == 'max': # max norm:
@@ -386,10 +386,10 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp'):
     elif estimator == 'fp':
 
         # construct k-d trees
-        z_tree   = cKDTree(z)
-        xz_tree  = cKDTree(xz)
-        yz_tree  = cKDTree(yz)
-        xyz_tree = cKDTree(xyz)
+        z_tree   = KDTree(z)
+        xz_tree  = KDTree(xz)
+        yz_tree  = KDTree(yz)
+        xyz_tree = KDTree(xyz)
 
         # kth nearest neighbour distances for every state
         if norm == 'max': # max norm:
@@ -421,8 +421,8 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp'):
         # but the estimators is just crap.
 
         # construct k-d trees
-        xz_tree  = cKDTree(xz,  leafsize=2*k)
-        yz_tree  = cKDTree(yz,  leafsize=2*k)
+        xz_tree  = KDTree(xz,  leafsize=2*k)
+        yz_tree  = KDTree(yz,  leafsize=2*k)
 
         # determine k-nn distances
         n = len(x)
@@ -494,7 +494,7 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm='max'):
     else:
         raise NotImplementedError("Variable 'norm' either 'max' or 'euclidean'")
 
-    y_tree  = cKDTree(y)
+    y_tree  = KDTree(y)
 
     n = len(y)
     i_spec = np.zeros((2, n))
@@ -509,8 +509,8 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm='max'):
 
         # store data pts in kd-trees for efficient nearest neighbour computations
         # TODO: choose a better leaf size
-        x_tree  = cKDTree(x)
-        xy_tree = cKDTree(xy)
+        x_tree  = KDTree(x)
+        xy_tree = KDTree(xy)
 
         # kth nearest neighbour distances for every state
         # query with k=k+1 to return the nearest neighbour, not counting the data point itself
