@@ -194,6 +194,10 @@ def get_h(x, k=1, norm='max', min_dist=0., workers=1):
         minimum distance between data points;
         smaller distances will be capped using this value
 
+	workers: int (default 1)
+		number of workers to use for parallel processing in query; 
+		-1 uses all CPU threads
+
     Returns:
     --------
     h: float
@@ -260,6 +264,10 @@ def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg', workers=1):
     estimator: 'ksg' or 'naive' (default 'ksg')
         'ksg'  : see Kraskov, Stoegbauer & Grassberger (2004) Estimating mutual information, eq(8).
         'naive': entropies are calculated individually using the Kozachenko-Leonenko estimator implemented in get_h()
+
+	workers: int (default 1)
+		number of workers to use for parallel processing in query; 
+		-1 uses all CPU threads
 
     Returns:
     --------
@@ -355,6 +363,10 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp', workers=1)
     estimator: 'fp', 'ps' or 'naive' (default 'fp')
         'naive': entropies are calculated individually using the Kozachenko-Leonenko estimator implemented in get_h()
         'fp'   : Frenzel & Pombe estimator (effectively the KSG-estimator for mutual information)
+
+	workers: int (default 1)
+		number of workers to use for parallel processing in query; 
+		-1 uses all CPU threads
 
     Returns:
     --------
@@ -476,6 +488,10 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm='max', workers=1):
 
     norm: 'euclidean' or 'max'
         p-norm used when computing k-nearest neighbour distances
+
+	workers: int (default 1)
+		number of workers to use for parallel processing in query; 
+		-1 uses all CPU threads
 
     Returns:
     --------
