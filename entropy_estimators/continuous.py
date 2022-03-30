@@ -523,7 +523,7 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm='max'):
         # repeat for the y subspace
         nx = np.empty(n, dtype=np.int)
         ny = np.empty(n, dtype=np.int)
-        for ii in range(N):
+        for ii in range(n):
             nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=p)) - 1
             ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=p)) - 1
 
