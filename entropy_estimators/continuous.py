@@ -22,7 +22,7 @@
 import functools
 import numpy as np
 
-from scipy.spatial import cKDTree
+from scipy.spatial import KDTree
 from scipy.special import gamma, digamma
 from scipy.stats   import rankdata
 
@@ -160,7 +160,7 @@ def get_pmi_mvn(x, y, z):
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_h(x, k=1, norm='max', min_dist=0.):
+def get_h(x, k=1, norm='max', min_dist=0., workers=1):
     """
     Estimates the entropy H of a random variable x (in nats) based on
     the kth-nearest neighbour distances between point samples.
@@ -184,6 +184,10 @@ def get_h(x, k=1, norm='max', min_dist=0.):
         minimum distance between data points;
         smaller distances will be capped using this value
 
+	workers: int (default 1)
+		number of workers to use for parallel processing in query;
+		-1 uses all CPU threads
+
     Returns:
     --------
     h: float
@@ -201,11 +205,11 @@ def get_h(x, k=1, norm='max', min_dist=0.):
     else:
         raise NotImplementedError("Variable 'norm' either 'max' or 'euclidean'")
 
-    kdtree = cKDTree(x)
+    kdtree = KDTree(x)
 
     # query all points -- k+1 as query point also in initial set
     # distances, _ = kdtree.query(x, k + 1, eps=0, p=norm)
-    distances, _ = kdtree.query(x, k + 1, eps=0, p=p)
+    distances, _ = kdtree.query(x, k + 1, eps=0, p=p, workers=workers)
     distances = distances[:, -1]
 
     # enforce non-zero distances
@@ -218,7 +222,7 @@ def get_h(x, k=1, norm='max', min_dist=0.):
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg'):
+def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg', workers=1):
     """
     Estimates the mutual information (in nats) between two point clouds, x and y,
     in a D-dimensional space.
@@ -251,6 +255,10 @@ def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg'):
         'ksg'  : see Kraskov, Stoegbauer & Grassberger (2004) Estimating mutual information, eq(8).
         'naive': entropies are calculated individually using the Kozachenko-Leonenko estimator implemented in get_h()
 
+	workers: int (default 1)
+		number of workers to use for parallel processing in query;
+		-1 uses all CPU threads
+
     Returns:
     --------
     mi: float
@@ -278,9 +286,9 @@ def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg'):
 
         # store data pts in kd-trees for efficient nearest neighbour computations
         # TODO: choose a better leaf size
-        x_tree  = cKDTree(x)
-        y_tree  = cKDTree(y)
-        xy_tree = cKDTree(xy)
+        x_tree  = KDTree(x)
+        y_tree  = KDTree(y)
+        xy_tree = KDTree(xy)
 
         # kth nearest neighbour distances for every state
         if norm == 'max': # max norm:
@@ -290,7 +298,7 @@ def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg'):
         else:
             raise NotImplementedError("Variable 'norm' either 'max' or 'euclidean'")
         # query with k=k+1 to return the nearest neighbour, not counting the data point itself
-        dist, _ = xy_tree.query(xy, k=k+1, p=p)
+        dist, _ = xy_tree.query(xy, k=k+1, p=p, workers=workers)
         epsilon = dist[:, -1]
 
         # for each point, count the number of neighbours
@@ -300,8 +308,8 @@ def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg'):
         nx = np.empty(n, dtype=np.int)
         ny = np.empty(n, dtype=np.int)
         for ii in range(n):
-            nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=p)) - 1
-            ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=p)) - 1
+            nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=p, workers=workers)) - 1
+            ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=p, workers=workers)) - 1
 
         mi = digamma(k) - np.mean(digamma(nx+1) + digamma(ny+1)) + digamma(n) # version (1)
         # mi = digamma(k) -1./k -np.mean(digamma(nx) + digamma(ny)) + digamma(n) # version (2)
@@ -313,7 +321,7 @@ def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg'):
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp'):
+def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp', workers=1):
     """
     Estimates the partial mutual information (in nats), i.e. the
     information between two point clouds, x and y, in a D-dimensional
@@ -346,6 +354,10 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp'):
         'naive': entropies are calculated individually using the Kozachenko-Leonenko estimator implemented in get_h()
         'fp'   : Frenzel & Pombe estimator (effectively the KSG-estimator for mutual information)
 
+	workers: int (default 1)
+		number of workers to use for parallel processing in query;
+		-1 uses all CPU threads
+
     Returns:
     --------
     pmi: float
@@ -376,10 +388,10 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp'):
     elif estimator == 'fp':
 
         # construct k-d trees
-        z_tree   = cKDTree(z)
-        xz_tree  = cKDTree(xz)
-        yz_tree  = cKDTree(yz)
-        xyz_tree = cKDTree(xyz)
+        z_tree   = KDTree(z)
+        xz_tree  = KDTree(xz)
+        yz_tree  = KDTree(yz)
+        xyz_tree = KDTree(xyz)
 
         # kth nearest neighbour distances for every state
         if norm == 'max': # max norm:
@@ -389,7 +401,7 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp'):
         else:
             raise NotImplementedError("Variable 'norm' either 'max' or 'euclidean'")
         # query with k=k+1 to return the nearest neighbour, not the data point itself
-        dist, _ = xyz_tree.query(xyz, k=k+1, p=p)
+        dist, _ = xyz_tree.query(xyz, k=k+1, p=p, workers=workers)
         epsilon = dist[:, -1]
 
         # for each point, count the number of neighbours
@@ -400,9 +412,9 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp'):
         nz  = np.empty(n, dtype=np.int)
 
         for ii in range(n):
-            nz[ii]  = len( z_tree.query_ball_point( z_tree.data[ii], r=epsilon[ii], p=p)) - 1
-            nxz[ii] = len(xz_tree.query_ball_point(xz_tree.data[ii], r=epsilon[ii], p=p)) - 1
-            nyz[ii] = len(yz_tree.query_ball_point(yz_tree.data[ii], r=epsilon[ii], p=p)) - 1
+            nz[ii]  = len( z_tree.query_ball_point( z_tree.data[ii], r=epsilon[ii], p=p, workers=workers)) - 1
+            nxz[ii] = len(xz_tree.query_ball_point(xz_tree.data[ii], r=epsilon[ii], p=p, workers=workers)) - 1
+            nyz[ii] = len(yz_tree.query_ball_point(yz_tree.data[ii], r=epsilon[ii], p=p, workers=workers)) - 1
 
         pmi = digamma(k) + np.mean(digamma(nz +1) -digamma(nxz +1) -digamma(nyz +1))
 
@@ -411,8 +423,8 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp'):
         # but the estimators is just crap.
 
         # construct k-d trees
-        xz_tree  = cKDTree(xz,  leafsize=2*k)
-        yz_tree  = cKDTree(yz,  leafsize=2*k)
+        xz_tree  = KDTree(xz,  leafsize=2*k)
+        yz_tree  = KDTree(yz,  leafsize=2*k)
 
         # determine k-nn distances
         n = len(x)
@@ -425,8 +437,8 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp'):
             p = 2
         else:
             raise NotImplementedError("Variable 'norm' either 'max' or 'euclidean'")
-        rxz, _ = xz_tree.query(xz, k=k+1, p=p) # +1 to account for distance to itself
-        ryz, _ = yz_tree.query(xz, k=k+1, p=p) # +1 to account for distance to itself; xz NOT a typo
+        rxz, _ = xz_tree.query(xz, k=k+1, p=p, workers=workers) # +1 to account for distance to itself
+        ryz, _ = yz_tree.query(xz, k=k+1, p=p, workers=workers) # +1 to account for distance to itself; xz NOT a typo
 
         pmi = yz.shape[1] * np.mean(log(ryz[:,-1]) - log(rxz[:,-1])) # + log(n) -log(n-1) -1.
 
@@ -437,7 +449,7 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp'):
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_imin(x1, x2, y, k=1, normalize=None, norm='max'):
+def get_imin(x1, x2, y, k=1, normalize=None, norm='max', workers=1):
     """
     Estimates the average specific information (in nats) between a random variable Y
     and two explanatory variables, X1 and X2.
@@ -467,6 +479,10 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm='max'):
     norm: 'euclidean' or 'max'
         p-norm used when computing k-nearest neighbour distances
 
+	workers: int (default 1)
+		number of workers to use for parallel processing in query;
+		-1 uses all CPU threads
+
     Returns:
     --------
     i_min: float
@@ -484,7 +500,7 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm='max'):
     else:
         raise NotImplementedError("Variable 'norm' either 'max' or 'euclidean'")
 
-    y_tree  = cKDTree(y)
+    y_tree  = KDTree(y)
 
     n = len(y)
     i_spec = np.zeros((2, n))
@@ -499,13 +515,13 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm='max'):
 
         # store data pts in kd-trees for efficient nearest neighbour computations
         # TODO: choose a better leaf size
-        x_tree  = cKDTree(x)
-        xy_tree = cKDTree(xy)
+        x_tree  = KDTree(x)
+        xy_tree = KDTree(xy)
 
         # kth nearest neighbour distances for every state
         # query with k=k+1 to return the nearest neighbour, not counting the data point itself
         # dist, _ = xy_tree.query(xy, k=k+1, p=norm)
-        dist, _ = xy_tree.query(xy, k=k+1, p=p)
+        dist, _ = xy_tree.query(xy, k=k+1, p=p, workers=workers)
         epsilon = dist[:, -1]
 
         # for each point, count the number of neighbours
@@ -514,8 +530,8 @@ def get_imin(x1, x2, y, k=1, normalize=None, norm='max'):
         nx = np.empty(n, dtype=np.int)
         ny = np.empty(n, dtype=np.int)
         for ii in range(n):
-            nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=p)) - 1
-            ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=p)) - 1
+            nx[ii] = len(x_tree.query_ball_point(x_tree.data[ii], r=epsilon[ii], p=p, workers=workers)) - 1
+            ny[ii] = len(y_tree.query_ball_point(y_tree.data[ii], r=epsilon[ii], p=p, workers=workers)) - 1
 
         i_spec[jj] = digamma(k) - digamma(nx+1) + digamma(ny+1) + digamma(n) # version (1)
 
