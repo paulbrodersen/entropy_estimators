@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
 setup(
     name = 'entropy_estimators',
-    version = '0.0.1',
+    version = '0.0.2',
     description = 'Estimators for entropy and other information theoretic quantities of continuous distributions',
     author = 'Paul Brodersen',
     author_email = 'paulbrodersen+entropy_estimators@gmail.com',
     url = 'https://github.com/paulbrodersen/entropy_estimators',
-    download_url = 'https://github.com/paulbrodersen/entropy_estimators/archive/0.0.1.tar.gz',
+    download_url = 'https://github.com/paulbrodersen/entropy_estimators/archive/0.0.2.tar.gz',
     keywords = ['entropy', 'Shannon information', 'mutual information', 'transfer entropy'],
     classifiers = [ # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
         'Development Status :: 3 - Alpha',
