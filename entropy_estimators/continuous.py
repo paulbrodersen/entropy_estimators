@@ -71,8 +71,7 @@ def det(array_or_scalar):
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_h_mvn(x):
-
+def get_h_mvn(x, base=None):
     """
     Computes the entropy of a multivariate Gaussian distribution:
 
@@ -83,6 +82,9 @@ def get_h_mvn(x):
     x: (n, d) ndarray
         n samples from a d-dimensional multivariate normal distribution
 
+    base: float
+        base of the logarithm, defaults to `e` for natural logarithm
+
     Returns:
     --------
     h: float
@@ -90,46 +92,49 @@ def get_h_mvn(x):
     """
 
     d = x.shape[1]
-    h  = 0.5 * log((2 * np.pi * np.e)**d * det(np.cov(x.T)))
+    h = 0.5 * np.log((2 * np.pi * np.e)**d * det(np.cov(x.T)))
+    if base is not None and base != np.e:
+        return h / np.log(base)
     return h
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_mi_mvn(x, y):
+def get_mi_mvn(x, y, base=None):
     """
     Computes the mutual information I between two multivariate normal random
     variables, X and Y:
 
-    I(X, Y) = H(X) + H(Y) - H(X, Y)
+    I(X;Y) = H(X) + H(Y) - H(X,Y)
 
     Arguments:
     ----------
     x, y: (n, d) ndarrays
         n samples from d-dimensional multivariate normal distributions
 
+    base: float
+        base of the logarithm, defaults to `e` for natural logarithm
+
     Returns:
     --------
     mi: float
-        mutual information I(X, Y)
+        mutual information I(X;Y)
     """
 
-    hx  = get_h_mvn(x)
-    hy  = get_h_mvn(y)
-    hxy = get_h_mvn(np.c_[x,y])
+    hx  = get_h_mvn(x, base=base)
+    hy  = get_h_mvn(y, base=base)
+    hxy = get_h_mvn(np.c_[x,y], base=base)
     mi = hx + hy - hxy
-
-    # mi = 0.5 * (log(det(np.cov(x.T))) + log(det(np.cov(y.T))) - log(det(np.cov(np.c_[x,y].T))))
 
     return mi
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_pmi_mvn(x, y, z):
+def get_pmi_mvn(x, y, z, base=None):
     """
     Computes the partial mutual information PMI between two multivariate normal random
     variables, X and Y, while conditioning on a third MVN RV, Z:
 
-    I(X;Y|Z) = H(X,Z) + H(Y,Z) - H(X, Y, Z) - H(Z)
+    I(X;Y|Z) = H(X,Z) + H(Y,Z) - H(X,Y,Z) - H(Z)
 
     where:
 
@@ -143,19 +148,21 @@ def get_pmi_mvn(x, y, z):
     x, y, z: (n, d) ndarrays
         n samples from d-dimensional multivariate normal distributions
 
+    base: float
+        base of the logarithm, defaults to `e` for natural logarithm
+
     Returns:
     --------
     pmi: float
         partial mutual information I(X;Y|Z)
     """
 
-    d = x.shape[1]
-    hz   = 0.5 * log((2 * np.pi * np.e)**d     * det(np.cov(z.T)))
-    hxz  = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(x.T, y=z.T)))
-    hyz  = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(y.T, y=z.T)))
-    hxyz = 0.5 * log((2 * np.pi * np.e)**(3*d) * det(np.cov(np.c_[x,y,z].T)))
-
+    hz = get_h_mvn(z, base=base)
+    hxz = get_h_mvn(np.c_[x,z], base=base)
+    hyz = get_h_mvn(np.c_[y,z], base=base)
+    hxyz = get_h_mvn(np.c_[x,y,z], base=base)
     pmi = hxz + hyz - hxyz - hz
+
     return pmi
 
 
