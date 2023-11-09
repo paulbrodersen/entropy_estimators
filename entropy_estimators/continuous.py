@@ -55,6 +55,13 @@ def convert_vectors_to_2d_arrays_if_any(func):
     return wrapper
 
 
+def convert_to_log_with_base(value, base):
+    if base is None or base == np.e:
+        return value
+    else:
+        return value / np.log(base)
+
+
 def unit_interval(arr):
     return (arr - np.nanmin(arr, axis=0)[None,:]) / (np.nanmax(arr, axis=0) - np.nanmin(arr, axis=0))
 
@@ -93,9 +100,7 @@ def get_h_mvn(x, base=None):
 
     d = x.shape[1]
     h = 0.5 * np.log((2 * np.pi * np.e)**d * det(np.cov(x.T)))
-    if base is not None and base != np.e:
-        return h / np.log(base)
-    return h
+    return convert_to_log_with_base(h, base)
 
 
 @convert_vectors_to_2d_arrays_if_any
@@ -120,12 +125,12 @@ def get_mi_mvn(x, y, base=None):
         mutual information I(X;Y)
     """
 
-    hx  = get_h_mvn(x, base=base)
-    hy  = get_h_mvn(y, base=base)
-    hxy = get_h_mvn(np.c_[x,y], base=base)
+    hx  = get_h_mvn(x)
+    hy  = get_h_mvn(y)
+    hxy = get_h_mvn(np.c_[x,y])
     mi = hx + hy - hxy
 
-    return mi
+    return convert_to_log_with_base(mi, base)
 
 
 @convert_vectors_to_2d_arrays_if_any
@@ -157,17 +162,17 @@ def get_pmi_mvn(x, y, z, base=None):
         partial mutual information I(X;Y|Z)
     """
 
-    hz = get_h_mvn(z, base=base)
-    hxz = get_h_mvn(np.c_[x,z], base=base)
-    hyz = get_h_mvn(np.c_[y,z], base=base)
-    hxyz = get_h_mvn(np.c_[x,y,z], base=base)
+    hz = get_h_mvn(z)
+    hxz = get_h_mvn(np.c_[x,z])
+    hyz = get_h_mvn(np.c_[y,z])
+    hxyz = get_h_mvn(np.c_[x,y,z])
     pmi = hxz + hyz - hxyz - hz
 
-    return pmi
+    return convert_to_log_with_base(pmi, base)
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_h(x, k=1, norm='max', min_dist=0., workers=1):
+def get_h(x, k=1, norm='max', min_dist=0., workers=1, base=None):
     """
     Estimates the entropy H of a random variable x (in nats) based on
     the kth-nearest neighbour distances between point samples.
@@ -194,6 +199,9 @@ def get_h(x, k=1, norm='max', min_dist=0., workers=1):
     workers: int (default 1)
         number of workers to use for parallel processing in query;
         -1 uses all CPU threads
+
+    base: float
+        base of the logarithm, defaults to `e` for natural logarithm
 
     Returns:
     --------
@@ -225,11 +233,11 @@ def get_h(x, k=1, norm='max', min_dist=0., workers=1):
     sum_log_dist = np.sum(log(2*distances)) # where did the 2 come from? radius -> diameter
     h = -digamma(k) + digamma(n) + log_c_d + (d / float(n)) * sum_log_dist
 
-    return h
+    return convert_to_log_with_base(h, base)
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg', workers=1):
+def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg', workers=1, base=None):
     """
     Estimates the mutual information (in nats) between two point clouds, x and y,
     in a D-dimensional space.
@@ -265,6 +273,9 @@ def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg', workers=1):
     workers: int (default 1)
         number of workers to use for parallel processing in query;
         -1 uses all CPU threads
+
+    base: float
+        base of the logarithm, defaults to `e` for natural logarithm
 
     Returns:
     --------
@@ -324,11 +335,11 @@ def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg', workers=1):
     else:
         raise NotImplementedError("Estimator is one of 'naive', 'ksg'; currently: {}".format(estimator))
 
-    return mi
+    return convert_to_log_with_base(mi, base)
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp', workers=1):
+def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp', workers=1, base=None):
     """
     Estimates the partial mutual information (in nats), i.e. the
     information between two point clouds, x and y, in a D-dimensional
@@ -364,6 +375,9 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp', workers=1)
     workers: int (default 1)
         number of workers to use for parallel processing in query;
         -1 uses all CPU threads
+
+    base: float
+        base of the logarithm, defaults to `e` for natural logarithm
 
     Returns:
     --------
@@ -452,7 +466,7 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp', workers=1)
     else:
         raise NotImplementedError("Estimator one of 'naive', 'fp', 'ps'; currently: {}".format(estimator))
 
-    return pmi
+    return convert_to_log_with_base(pmi, base)
 
 
 @convert_vectors_to_2d_arrays_if_any
