@@ -71,8 +71,7 @@ def det(array_or_scalar):
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_h_mvn(x):
-
+def get_h_mvn(x, normalized=False):
     """
     Computes the entropy of a multivariate Gaussian distribution:
 
@@ -83,6 +82,12 @@ def get_h_mvn(x):
     x: (n, d) ndarray
         n samples from a d-dimensional multivariate normal distribution
 
+    normalized: bool
+        normalize distribution, if `True` each component is normalized such that
+        its standard deviation is `1` and the covariance matrix becomes equal to
+        the Pearson correlation coefficients and the entropy becomes invariant
+        under linear transformation
+
     Returns:
     --------
     h: float
@@ -91,6 +96,16 @@ def get_h_mvn(x):
 
     d = x.shape[1]
     h  = 0.5 * log((2 * np.pi * np.e)**d * det(np.cov(x.T)))
+    if d == 1:
+        if normalized:
+            h = 0.5 * np.log(2 * np.pi * np.e)
+        else:
+            h = 0.5 * np.log((2 * np.pi * np.e) * np.var(x, ddof=1))
+    else:
+        if normalized:
+            h = 0.5 * np.log((2 * np.pi * np.e)**d * det(np.corrcoef(x.T)))
+        else:
+            h = 0.5 * np.log((2 * np.pi * np.e)**d * det(np.cov(x.T)))
     return h
 
 
