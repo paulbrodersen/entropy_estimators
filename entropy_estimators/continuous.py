@@ -86,7 +86,7 @@ def get_h_mvn(x, normalized=False):
         normalize distribution, if `True` each component is normalized such that
         its standard deviation is `1` and the covariance matrix becomes equal to
         the Pearson correlation coefficients and the entropy becomes invariant
-        under linear transformation
+        under scalar multiplication
 
     Returns:
     --------
@@ -95,17 +95,31 @@ def get_h_mvn(x, normalized=False):
     """
 
     d = x.shape[1]
-    h  = 0.5 * log((2 * np.pi * np.e)**d * det(np.cov(x.T)))
     if d == 1:
         if normalized:
-            h = 0.5 * np.log(2 * np.pi * np.e)
+            det_cov = 1
         else:
-            h = 0.5 * np.log((2 * np.pi * np.e) * np.var(x, ddof=1))
+            det_cov = np.var(x, ddof=1)
     else:
+        cov = np.cov(x.T)
+        # corrcoef calculation simplified from source code of np.corrcoef
+        stddev = np.sqrt(np.diagonal(cov))
+        corrcoef = cov / stddev[:, None] / stddev[None, :]
+        det_corrcoef = np.linalg.det(corrcoef)
+        # check if elements are exactly zero, then variables 100% correlated
+        if det_corrcoef == 0:
+            return -np.inf
+        # check if elements of corrcoef determinent is close to zero considering
+        # float precision
+        if np.isclose(det_corrcoef, 0, rtol=0,
+                      atol=100*np.finfo(det_corrcoef).resolution):
+            return np.nan
         if normalized:
-            h = 0.5 * np.log((2 * np.pi * np.e)**d * det(np.corrcoef(x.T)))
+            det_cov = det_corrcoef
         else:
-            h = 0.5 * np.log((2 * np.pi * np.e)**d * det(np.cov(x.T)))
+            det_cov = np.linalg.det(cov)
+    h = 0.5 * np.log((2 * np.pi * np.e)**d * det_cov)
+
     return h
 
 
