@@ -1,7 +1,7 @@
 > [!CAUTION]
 > This package implements the KL-estimator and the KSG-estimator for the entropy and mutual information of continuous variables (and a few variants thereof).
 > These estimators have issues, and for most purposes, should likely no longer be the first choice.
-> Please read see [this comment](https://github.com/paulbrodersen/entropy_estimators/issues/11#issuecomment-2109577671) for a better explanation than I could give, as well as a link to an alternative implementation.
+> Please read [this comment](https://github.com/paulbrodersen/entropy_estimators/issues/11#issuecomment-2109577671) for a better explanation than I could give, as well as a link to an alternative implementation.
 
 # Entropy estimators
 
