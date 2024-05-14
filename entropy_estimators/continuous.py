@@ -55,6 +55,13 @@ def convert_vectors_to_2d_arrays_if_any(func):
     return wrapper
 
 
+def convert_to_log_with_base(value, base):
+    if base is None or base == np.e:
+        return value
+    else:
+        return value / np.log(base)
+
+
 def unit_interval(arr):
     return (arr - np.nanmin(arr, axis=0)[None,:]) / (np.nanmax(arr, axis=0) - np.nanmin(arr, axis=0))
 
@@ -71,8 +78,7 @@ def det(array_or_scalar):
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_h_mvn(x):
-
+def get_h_mvn(x, base=None):
     """
     Computes the entropy of a multivariate Gaussian distribution:
 
@@ -83,6 +89,9 @@ def get_h_mvn(x):
     x: (n, d) ndarray
         n samples from a d-dimensional multivariate normal distribution
 
+    base: float
+        base of the logarithm, defaults to `e` for natural logarithm
+
     Returns:
     --------
     h: float
@@ -90,27 +99,30 @@ def get_h_mvn(x):
     """
 
     d = x.shape[1]
-    h  = 0.5 * log((2 * np.pi * np.e)**d * det(np.cov(x.T)))
-    return h
+    h = 0.5 * np.log((2 * np.pi * np.e)**d * det(np.cov(x.T)))
+    return convert_to_log_with_base(h, base)
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_mi_mvn(x, y):
+def get_mi_mvn(x, y, base=None):
     """
     Computes the mutual information I between two multivariate normal random
     variables, X and Y:
 
-    I(X, Y) = H(X) + H(Y) - H(X, Y)
+    I(X;Y) = H(X) + H(Y) - H(X,Y)
 
     Arguments:
     ----------
     x, y: (n, d) ndarrays
         n samples from d-dimensional multivariate normal distributions
 
+    base: float
+        base of the logarithm, defaults to `e` for natural logarithm
+
     Returns:
     --------
     mi: float
-        mutual information I(X, Y)
+        mutual information I(X;Y)
     """
 
     hx  = get_h_mvn(x)
@@ -118,18 +130,16 @@ def get_mi_mvn(x, y):
     hxy = get_h_mvn(np.c_[x,y])
     mi = hx + hy - hxy
 
-    # mi = 0.5 * (log(det(np.cov(x.T))) + log(det(np.cov(y.T))) - log(det(np.cov(np.c_[x,y].T))))
-
-    return mi
+    return convert_to_log_with_base(mi, base)
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_pmi_mvn(x, y, z):
+def get_pmi_mvn(x, y, z, base=None):
     """
     Computes the partial mutual information PMI between two multivariate normal random
     variables, X and Y, while conditioning on a third MVN RV, Z:
 
-    I(X;Y|Z) = H(X,Z) + H(Y,Z) - H(X, Y, Z) - H(Z)
+    I(X;Y|Z) = H(X,Z) + H(Y,Z) - H(X,Y,Z) - H(Z)
 
     where:
 
@@ -143,24 +153,26 @@ def get_pmi_mvn(x, y, z):
     x, y, z: (n, d) ndarrays
         n samples from d-dimensional multivariate normal distributions
 
+    base: float
+        base of the logarithm, defaults to `e` for natural logarithm
+
     Returns:
     --------
     pmi: float
         partial mutual information I(X;Y|Z)
     """
 
-    d = x.shape[1]
-    hz   = 0.5 * log((2 * np.pi * np.e)**d     * det(np.cov(z.T)))
-    hxz  = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(x.T, y=z.T)))
-    hyz  = 0.5 * log((2 * np.pi * np.e)**(2*d) * det(np.cov(y.T, y=z.T)))
-    hxyz = 0.5 * log((2 * np.pi * np.e)**(3*d) * det(np.cov(np.c_[x,y,z].T)))
-
+    hz = get_h_mvn(z)
+    hxz = get_h_mvn(np.c_[x,z])
+    hyz = get_h_mvn(np.c_[y,z])
+    hxyz = get_h_mvn(np.c_[x,y,z])
     pmi = hxz + hyz - hxyz - hz
-    return pmi
+
+    return convert_to_log_with_base(pmi, base)
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_h(x, k=1, norm='max', min_dist=0., workers=1):
+def get_h(x, k=1, norm='max', min_dist=0., workers=1, base=None):
     """
     Estimates the entropy H of a random variable x (in nats) based on
     the kth-nearest neighbour distances between point samples.
@@ -187,6 +199,9 @@ def get_h(x, k=1, norm='max', min_dist=0., workers=1):
     workers: int (default 1)
         number of workers to use for parallel processing in query;
         -1 uses all CPU threads
+
+    base: float
+        base of the logarithm, defaults to `e` for natural logarithm
 
     Returns:
     --------
@@ -218,11 +233,11 @@ def get_h(x, k=1, norm='max', min_dist=0., workers=1):
     sum_log_dist = np.sum(log(2*distances)) # where did the 2 come from? radius -> diameter
     h = -digamma(k) + digamma(n) + log_c_d + (d / float(n)) * sum_log_dist
 
-    return h
+    return convert_to_log_with_base(h, base)
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg', workers=1):
+def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg', workers=1, base=None):
     """
     Estimates the mutual information (in nats) between two point clouds, x and y,
     in a D-dimensional space.
@@ -258,6 +273,9 @@ def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg', workers=1):
     workers: int (default 1)
         number of workers to use for parallel processing in query;
         -1 uses all CPU threads
+
+    base: float
+        base of the logarithm, defaults to `e` for natural logarithm
 
     Returns:
     --------
@@ -317,11 +335,11 @@ def get_mi(x, y, k=1, normalize=None, norm='max', estimator='ksg', workers=1):
     else:
         raise NotImplementedError("Estimator is one of 'naive', 'ksg'; currently: {}".format(estimator))
 
-    return mi
+    return convert_to_log_with_base(mi, base)
 
 
 @convert_vectors_to_2d_arrays_if_any
-def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp', workers=1):
+def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp', workers=1, base=None):
     """
     Estimates the partial mutual information (in nats), i.e. the
     information between two point clouds, x and y, in a D-dimensional
@@ -357,6 +375,9 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp', workers=1)
     workers: int (default 1)
         number of workers to use for parallel processing in query;
         -1 uses all CPU threads
+
+    base: float
+        base of the logarithm, defaults to `e` for natural logarithm
 
     Returns:
     --------
@@ -445,7 +466,7 @@ def get_pmi(x, y, z, k=1, normalize=None, norm='max', estimator='fp', workers=1)
     else:
         raise NotImplementedError("Estimator one of 'naive', 'fp', 'ps'; currently: {}".format(estimator))
 
-    return pmi
+    return convert_to_log_with_base(pmi, base)
 
 
 @convert_vectors_to_2d_arrays_if_any
